@@ -1,0 +1,830 @@
+import { useState, useEffect, useMemo } from 'react';
+import { Search, Filter, Download, Upload, CheckCircle2, ListChecks, Send } from 'lucide-react';
+import Layout from '../components/layout/Layout';
+import Card from '../components/common/Card';
+import Button from '../components/common/Button';
+import Input from '../components/common/Input';
+import Select from '../components/common/Select';
+import ExpenseTable from '../components/dashboard/ExpenseTable';
+import Modal from '../components/common/Modal';
+import AdvancedFilter, { ADVANCED_FILTER_DEFAULTS } from '../components/common/AdvancedFilter';
+import {
+  getExpenses,
+  exportExpenses,
+  deleteExpense,
+  updateExpense,
+  bulkDeleteExpenses,
+  resendMisNotification,
+  bulkResendMisNotifications,
+} from '../services/expenseService';
+import { useAuth } from '../context/AuthContext';
+import {
+  STATUS_OPTIONS,
+  TYPES_OF_EXPENSE,
+  COST_CENTERS,
+  APPROVED_BY,
+  RECURRING_OPTIONS,
+  CURRENCIES,
+  BUSINESS_UNITS,
+} from '../utils/constants';
+import { downloadFile } from '../utils/formatters';
+import toast from 'react-hot-toast';
+import { getMonthYear } from '../utils/formatters';
+
+const Expenses = () => {
+  const { user } = useAuth();
+  const canSeeDuplicateControls = user?.role === 'mis_manager';
+  const canFilterBusinessUnit = ['mis_manager', 'super_admin'].includes(user?.role);
+  const canEditCardAssignedTo = user?.role === 'mis_manager';
+  const canEditBusinessUnit = ['mis_manager', 'super_admin'].includes(user?.role);
+  const canFilterServiceHandler = ['mis_manager', 'super_admin', 'business_unit_admin', 'spoc'].includes(user?.role);
+  const canFilterCardAssigned = ['mis_manager', 'super_admin', 'business_unit_admin', 'spoc'].includes(user?.role);
+  const canEditSharedAllocations = ['mis_manager', 'super_admin'].includes(user?.role);
+  const canBulkDelete = ['mis_manager', 'super_admin'].includes(user?.role);
+  const canResendMis = ['mis_manager', 'super_admin'].includes(user?.role);
+  const createDefaultFilters = () => ({ ...ADVANCED_FILTER_DEFAULTS });
+  const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState(createDefaultFilters);
+  const [showDuplicateStatus, setShowDuplicateStatus] = useState(canSeeDuplicateControls);
+  const [duplicateExportMode, setDuplicateExportMode] = useState('all');
+  const [exportLimit, setExportLimit] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [bulkDeleteEnabled, setBulkDeleteEnabled] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const itemsPerPage = 20;
+  const getDuplicateFlag = (expense) => {
+    if (expense.duplicateFlag) return expense.duplicateFlag;
+    if (typeof expense.duplicateLabel === 'string') {
+      return expense.duplicateLabel.toLowerCase().startsWith('duplicate') ? 'duplicate' : 'unique';
+    }
+    if (expense.duplicateStatus === 'Unique') return 'unique';
+    return 'unique';
+  };
+  const duplicateCount = expenses.filter((e) => getDuplicateFlag(e) === 'duplicate').length;
+  const uniqueCount = expenses.filter((e) => getDuplicateFlag(e) === 'unique').length;
+  const duplicateHelp =
+    'Duplicate = entries that match card, date, particulars, amount, and currency. Unique = entries with no match or manually marked unique.';
+  const totalEntries = expenses.length;
+  const activeServices = expenses.filter((e) => e.status === 'Active').length;
+  const serviceHandlerOptions = useMemo(
+    () =>
+      [...new Set(expenses.map((expense) => expense.serviceHandler).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b)),
+    [expenses]
+  );
+  const cardAssignedOptions = useMemo(
+    () =>
+      [...new Set(expenses.map((expense) => expense.cardAssignedTo).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b)),
+    [expenses]
+  );
+
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  useEffect(() => {
+    setShowDuplicateStatus(canSeeDuplicateControls);
+  }, [user]);
+
+  const fetchExpenses = async (customFilters = filters, customSearchTerm = searchTerm) => {
+    try {
+      setLoading(true);
+      const payload = {
+        ...customFilters,
+        search: customSearchTerm,
+      };
+      if (customFilters.sharedOnly === 'true') {
+        payload.isShared = 'true';
+      }
+      const response = await getExpenses(payload);
+      if (response.success) {
+        setExpenses(response.data);
+        const availableIds = new Set(response.data.map((entry) => entry._id));
+        setSelectedIds((prev) => prev.filter((id) => availableIds.has(id)));
+        setCurrentPage(1);
+      }
+    } catch (error) {
+      toast.error('Failed to load expenses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = () => {
+    fetchExpenses(filters, searchTerm);
+  };
+
+  const handleFilterChange = (e) => {
+    setFilters({
+      ...filters,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleClearFilters = () => {
+    const clearedFilters = createDefaultFilters();
+    setFilters(clearedFilters);
+    setSearchTerm('');
+    setCurrentPage(1);
+    fetchExpenses(clearedFilters, '');
+  };
+
+  const handleExport = async () => {
+    try {
+      const exportFilters = { ...filters, search: searchTerm };
+      if (filters.sharedOnly === 'true') {
+        exportFilters.isShared = 'true';
+      }
+      if (canSeeDuplicateControls) {
+        if (duplicateExportMode === 'duplicate') {
+          exportFilters.duplicateStatus = 'Duplicate';
+        } else if (duplicateExportMode === 'unique') {
+          exportFilters.duplicateStatus = 'Unique';
+        } else if (!filters.duplicateStatus) {
+          delete exportFilters.duplicateStatus;
+        }
+      } else {
+        delete exportFilters.duplicateStatus;
+      }
+
+      if (exportLimit) {
+        exportFilters.limit = exportLimit;
+      }
+
+      const blob = await exportExpenses({
+        ...exportFilters,
+        includeDuplicateStatus: showDuplicateStatus && canSeeDuplicateControls ? 'true' : 'false',
+      });
+      downloadFile(blob, `expenses-${Date.now()}.xlsx`);
+      toast.success('Expenses exported successfully');
+    } catch (error) {
+      toast.error('Failed to export expenses');
+    }
+  };
+
+  const handleEdit = (expense) => {
+    const baseAllocations = expense.sharedAllocations ? [...expense.sharedAllocations] : [];
+    if (expense.isShared && expense.businessUnit) {
+      const hasPrimary = baseAllocations.some((alloc) => alloc.businessUnit === expense.businessUnit);
+      if (!hasPrimary) {
+        baseAllocations.push({ businessUnit: expense.businessUnit, amount: 0 });
+      }
+    }
+    setSelectedExpense({
+      ...expense,
+      date: expense.date ? expense.date.substring(0, 10) : '',
+      sharedAllocations: baseAllocations,
+      duplicateStatus: expense.duplicateStatus || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this expense entry?')) {
+      try {
+        await deleteExpense(id);
+        toast.success('Expense deleted successfully');
+        fetchExpenses();
+      } catch (error) {
+        toast.error('Failed to delete expense');
+      }
+    }
+  };
+
+  const handleResendMis = async (expense) => {
+    if (!expense?._id) return;
+    try {
+      const response = await resendMisNotification(expense._id);
+      const summary = response?.data;
+      const label = expense.particulars ? ` for ${expense.particulars}` : '';
+      if (summary) {
+        const detail = summary.failed
+          ? ` (${summary.success} sent, ${summary.failed} failed)`
+          : ` (${summary.success} sent)`;
+        toast.success(`MIS resend${label}${detail}`);
+      } else {
+        toast.success(`MIS resend${label} completed`);
+      }
+    } catch (error) {
+      toast.error('Failed to resend MIS email');
+    }
+  };
+
+  const toggleBulkDelete = () => {
+    setBulkDeleteEnabled((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSelectedIds([]);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectEntry = (id) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((entryId) => entryId !== id) : [...prev, id]));
+  };
+
+  const updateSharedAllocation = (businessUnit, amount) => {
+    setSelectedExpense((prev) => {
+      if (!prev) return prev;
+      const allocations = [...(prev.sharedAllocations || [])];
+      const idx = allocations.findIndex((alloc) => alloc.businessUnit === businessUnit);
+      if (idx >= 0) {
+        allocations[idx] = { ...allocations[idx], amount };
+      } else {
+        allocations.push({ businessUnit, amount });
+      }
+      const total = allocations.reduce((sum, alloc) => sum + (parseFloat(alloc.amount) || 0), 0);
+      return {
+        ...prev,
+        sharedAllocations: allocations,
+        amount: prev.isShared && total > 0 ? total : prev.amount,
+      };
+    });
+  };
+
+  const toggleSharedAllocation = (businessUnit, enabled) => {
+    setSelectedExpense((prev) => {
+      if (!prev) return prev;
+      const isPrimary = businessUnit === prev.businessUnit;
+      let allocations = [...(prev.sharedAllocations || [])];
+      if (!enabled && !isPrimary) {
+        allocations = allocations.filter((alloc) => alloc.businessUnit !== businessUnit);
+      } else if (enabled) {
+        const exists = allocations.some((alloc) => alloc.businessUnit === businessUnit);
+        if (!exists) {
+          allocations.push({ businessUnit, amount: 0 });
+        }
+      }
+      const total = allocations.reduce((sum, alloc) => sum + (parseFloat(alloc.amount) || 0), 0);
+      return {
+        ...prev,
+        sharedAllocations: allocations,
+        amount: prev.isShared && total > 0 ? total : prev.amount,
+      };
+    });
+  };
+
+  const handleUpdateExpense = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        status: selectedExpense.status,
+        amount: selectedExpense.amount,
+        date: selectedExpense.date,
+        month: selectedExpense.month,
+        cardAssignedTo: selectedExpense.cardAssignedTo,
+        ...(canEditBusinessUnit ? { businessUnit: selectedExpense.businessUnit } : {}),
+        particulars: selectedExpense.particulars,
+        narration: selectedExpense.narration,
+        currency: selectedExpense.currency,
+        billStatus: selectedExpense.billStatus,
+        typeOfService: selectedExpense.typeOfService,
+        costCenter: selectedExpense.costCenter,
+        approvedBy: selectedExpense.approvedBy,
+        serviceHandler: selectedExpense.serviceHandler,
+        recurring: selectedExpense.recurring,
+        ...(canSeeDuplicateControls ? { duplicateStatus: selectedExpense.duplicateStatus || '' } : {}),
+      };
+
+      if (selectedExpense.isShared) {
+        const sharedAllocations = (selectedExpense.sharedAllocations || [])
+          .map((item) => ({
+            businessUnit: item.businessUnit,
+            amount: parseFloat(item.amount) || 0,
+          }))
+          .filter((item) => item.amount > 0 && item.businessUnit);
+
+        if (sharedAllocations.length === 0) {
+          toast.error('Please enter at least one shared allocation amount.');
+          return;
+        }
+
+        const totalShared = sharedAllocations.reduce((sum, item) => sum + item.amount, 0);
+        payload.isShared = true;
+        payload.sharedAllocations = sharedAllocations;
+        payload.amount = totalShared;
+      }
+
+      await updateExpense(selectedExpense._id, payload);
+      toast.success('Expense updated successfully');
+      setShowEditModal(false);
+      fetchExpenses();
+    } catch (error) {
+      toast.error('Failed to update expense');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const confirmed = window.confirm(`Delete ${selectedIds.length} selected entries? This cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      await bulkDeleteExpenses(selectedIds);
+      toast.success('Selected entries deleted successfully');
+      setSelectedIds([]);
+      setBulkDeleteEnabled(false);
+      fetchExpenses();
+    } catch (error) {
+      toast.error('Failed to delete selected entries');
+    }
+  };
+
+  const handleBulkResendMis = async () => {
+    if (selectedIds.length === 0) return;
+    const confirmed = window.confirm(
+      `Resend MIS emails for ${selectedIds.length} selected entries?`
+    );
+    if (!confirmed) return;
+
+    try {
+      const response = await bulkResendMisNotifications(selectedIds);
+      const summary = response?.data;
+      if (summary) {
+        const sent = summary.totalEmails ? `${summary.emailSuccess}/${summary.totalEmails}` : `${summary.emailSuccess}`;
+        const skipped = summary.entriesSkipped ? `, ${summary.entriesSkipped} skipped` : '';
+        const missing = summary.entriesMissing ? `, ${summary.entriesMissing} missing` : '';
+        toast.success(`MIS resend done: ${sent} emails sent${skipped}${missing}`);
+      } else {
+        toast.success('MIS resend completed');
+      }
+    } catch (error) {
+      toast.error('Failed to resend MIS emails');
+    }
+  };
+
+  const pageExpenses = expenses.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const pageIds = pageExpenses.map((expense) => expense._id);
+  const handleToggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const selected = new Set(prev);
+      const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+      if (allSelected) {
+        pageIds.forEach((id) => selected.delete(id));
+      } else {
+        pageIds.forEach((id) => selected.add(id));
+      }
+      return Array.from(selected);
+    });
+  };
+
+  return (
+    <Layout>
+      <div className="space-y-6">
+        <div className="brand-gradient rounded-3xl px-6 py-8 text-white shadow-lg flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.4em] text-white/80">Global Expense Sheet</p>
+            <h1 className="mt-2 text-3xl font-semibold">
+              {user?.role === 'service_handler' ? 'My Services Ledger' : 'Expense Intelligence Grid'}
+            </h1>
+            <p className="text-white/80 text-sm max-w-2xl">
+              Filter, audit and export every swipe across business units with smart duplicate detection and MIS-grade controls.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" onClick={handleExport}>
+              <Download size={18} className="mr-2" />
+              Export view
+            </Button>
+            {['mis_manager', 'super_admin'].includes(user?.role) && (
+              <Button onClick={() => (window.location.href = '/bulk-upload')}>
+                <Upload size={18} className="mr-2" />
+                Bulk upload
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Sheet Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Total Entries</p>
+              <p className="text-2xl font-semibold text-slate-900">{totalEntries}</p>
+              <p className="text-sm text-slate-500">Currently loaded</p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+              <ListChecks size={18} />
+            </div>
+          </div>
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Active Services</p>
+              <p className="text-2xl font-semibold text-slate-900">{activeServices}</p>
+              <p className="text-sm text-slate-500">Across entries</p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+              <CheckCircle2 size={18} />
+            </div>
+          </div>
+        </div>
+
+        {/* Search and Filters */}
+        <Card>
+          <div className="space-y-5">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+              <Input
+                className={`flex-1 ${bulkDeleteEnabled ? 'xl:max-w-[420px]' : ''}`}
+                placeholder="Search by card number, service, handler..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                icon={<Search size={16} />}
+              />
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={handleSearch}>
+                  <Search size={18} className="mr-2" />
+                  Apply search
+                </Button>
+                <Button variant="secondary" onClick={handleClearFilters}>
+                  Clear
+                </Button>
+                <AdvancedFilter
+                  appliedFilters={filters}
+                  onApplyFilters={(newFilters) => {
+                    const updatedFilters = { ...createDefaultFilters(), ...newFilters };
+                    setFilters(updatedFilters);
+                    fetchExpenses(updatedFilters, searchTerm);
+                  }}
+                  onClearFilters={() => {
+                    const cleared = createDefaultFilters();
+                    setFilters(cleared);
+                    fetchExpenses(cleared, '');
+                    setSearchTerm('');
+                  }}
+                  showBusinessUnit={canFilterBusinessUnit}
+                  showDuplicateStatusFilter={canSeeDuplicateControls}
+                  showServiceHandlerFilter={canFilterServiceHandler}
+                  showCardAssignedFilter={canFilterCardAssigned}
+                  serviceHandlerOptions={serviceHandlerOptions}
+                  cardAssignedOptions={cardAssignedOptions}
+                  includeEmptyOption
+                />
+                {canBulkDelete && (
+                  <Button
+                    variant={bulkDeleteEnabled ? 'primary' : 'secondary'}
+                    onClick={toggleBulkDelete}
+                  >
+                    Select entries
+                  </Button>
+                )}
+                {bulkDeleteEnabled && (
+                  <Button
+                    variant="secondary"
+                    onClick={handleBulkResendMis}
+                    disabled={selectedIds.length === 0 || !canResendMis}
+                  >
+                    <Send size={18} className="mr-2" />
+                    Resend MIS ({selectedIds.length})
+                  </Button>
+                )}
+                {bulkDeleteEnabled && (
+                  <Button
+                    variant="danger"
+                    onClick={handleBulkDelete}
+                    disabled={selectedIds.length === 0}
+                  >
+                    Delete now ({selectedIds.length})
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+              <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5">
+                <span>Rows to export</span>
+                <input
+                  type="number"
+                  min="1"
+                  className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                  placeholder="All"
+                  value={exportLimit}
+                  onChange={(e) => setExportLimit(e.target.value)}
+                />
+              </label>
+              {canSeeDuplicateControls && (
+                <>
+                  <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5">
+                    <input
+                      type="checkbox"
+                      checked={showDuplicateStatus}
+                      onChange={(e) => setShowDuplicateStatus(e.target.checked)}
+                      className="h-4 w-4 text-primary-600 rounded"
+                    />
+                    <span>Show duplicate column</span>
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Export</span>
+                    <div className="flex rounded-full border border-slate-200 bg-white/80 p-1">
+                      {['all', 'duplicate', 'unique'].map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setDuplicateExportMode(mode)}
+                          className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                            duplicateExportMode === mode ? 'bg-primary-600 text-white' : 'text-slate-500'
+                          }`}
+                        >
+                          {mode === 'duplicate'
+                            ? `duplicate (${duplicateCount})`
+                            : mode === 'unique'
+                            ? `unique (${uniqueCount})`
+                            : 'all'}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className="text-xs text-slate-500 underline decoration-dotted underline-offset-4"
+                        aria-label="Duplicate help"
+                        onMouseEnter={(e) => {
+                          const tooltip = e.currentTarget.querySelector('.dup-tooltip');
+                          if (tooltip) tooltip.style.display = 'block';
+                        }}
+                        onMouseLeave={(e) => {
+                          const tooltip = e.currentTarget.querySelector('.dup-tooltip');
+                          if (tooltip) tooltip.style.display = 'none';
+                        }}
+                      >
+                        what’s this?
+                        <span className="dup-tooltip hidden absolute z-20 left-0 mt-2 w-72 rounded-lg bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
+                          {duplicateHelp}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+          </div>
+        </Card>
+
+        {/* Expense Table */}
+        <Card>
+          <ExpenseTable
+            expenses={pageExpenses}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onResendMis={canResendMis ? handleResendMis : undefined}
+            loading={loading}
+            showDuplicateColumn={canSeeDuplicateControls && showDuplicateStatus}
+            bulkDeleteEnabled={bulkDeleteEnabled}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelectEntry}
+            onToggleSelectAll={handleToggleSelectAll}
+          />
+
+          {!loading && expenses.length > 0 && (
+            <div className="mt-4 flex flex-col gap-3 text-sm text-slate-700 md:flex-row md:items-center md:justify-between">
+              <span>
+                Showing{' '}
+                {expenses.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to{' '}
+                {Math.min(currentPage * itemsPerPage, expenses.length)} of {expenses.length} entries
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                >
+                  Previous
+                </Button>
+                <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-700">
+                  Page {currentPage} of {Math.max(1, Math.ceil(expenses.length / itemsPerPage))}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={currentPage >= Math.ceil(expenses.length / itemsPerPage)}
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, Math.max(1, Math.ceil(expenses.length / itemsPerPage))))
+                  }
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        {/* Edit Modal */}
+        {showEditModal && selectedExpense && (
+          <Modal
+            isOpen={showEditModal}
+            onClose={() => setShowEditModal(false)}
+            title="Edit Expense Entry"
+            size="xl"
+          >
+            <form onSubmit={handleUpdateExpense} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Input label="Card Number" value={selectedExpense.cardNumber} disabled />
+                {canEditBusinessUnit ? (
+                  <Select
+                    label="Business Unit"
+                    name="businessUnit"
+                    value={selectedExpense.businessUnit || ''}
+                    onChange={(e) => setSelectedExpense({ ...selectedExpense, businessUnit: e.target.value })}
+                    options={BUSINESS_UNITS}
+                  />
+                ) : (
+                  <Input label="Business Unit" value={selectedExpense.businessUnit || ''} disabled />
+                )}
+                <Input
+                  label="Card Assigned To"
+                  name="cardAssignedTo"
+                  value={selectedExpense.cardAssignedTo}
+                  onChange={(e) => setSelectedExpense({ ...selectedExpense, cardAssignedTo: e.target.value })}
+                  disabled={!canEditCardAssignedTo}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Input
+                  label="Date"
+                  type="date"
+                  name="date"
+                  value={selectedExpense.date || ''}
+                  onChange={(e) =>
+                    setSelectedExpense((prev) => ({
+                      ...prev,
+                      date: e.target.value,
+                      month: getMonthYear(e.target.value),
+                    }))
+                  }
+                  required
+                />
+                <Input label="Month" value={selectedExpense.month} disabled />
+                <Select
+                  label="Status"
+                  name="status"
+                  value={selectedExpense.status}
+                  onChange={(e) => setSelectedExpense({ ...selectedExpense, status: e.target.value })}
+                  options={STATUS_OPTIONS}
+                  required
+                />
+              </div>
+              {canSeeDuplicateControls && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Select
+                    label="Duplicate Override"
+                    name="duplicateStatus"
+                    value={selectedExpense.duplicateStatus || ''}
+                    onChange={(e) => setSelectedExpense({ ...selectedExpense, duplicateStatus: e.target.value })}
+                    options={[{ label: 'Unique', value: 'Unique' }]}
+                    placeholder="Auto (use duplicate detection)"
+                  />
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Particulars"
+                  name="particulars"
+                  value={selectedExpense.particulars}
+                  onChange={(e) => setSelectedExpense({ ...selectedExpense, particulars: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Narration"
+                  name="narration"
+                  value={selectedExpense.narration}
+                  onChange={(e) => setSelectedExpense({ ...selectedExpense, narration: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Select
+                  label="Currency"
+                  name="currency"
+                  value={selectedExpense.currency}
+                  onChange={(e) => setSelectedExpense({ ...selectedExpense, currency: e.target.value })}
+                  options={CURRENCIES}
+                  required
+                />
+                <Input
+                  label="Amount"
+                  type="number"
+                  step="0.01"
+                  value={selectedExpense.amount}
+                  onChange={(e) => setSelectedExpense({ ...selectedExpense, amount: e.target.value })}
+                  required
+                />
+                <Input
+                  label="Bill Status"
+                  name="billStatus"
+                  value={selectedExpense.billStatus}
+                  onChange={(e) => setSelectedExpense({ ...selectedExpense, billStatus: e.target.value })}
+                  placeholder="e.g., Current"
+                />
+              </div>
+              {canEditSharedAllocations && selectedExpense.isShared && (
+                <div className="border border-slate-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Shared Distribution</h3>
+                      <p className="text-sm text-slate-500">
+                        Update the allocation across business units. Total amount recalculates on save.
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-emerald-600">Shared Entry</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {BUSINESS_UNITS.map((bu) => {
+                      const allocation = selectedExpense.sharedAllocations?.find((alloc) => alloc.businessUnit === bu);
+                      const enabled = Boolean(allocation) || bu === selectedExpense.businessUnit;
+                      return (
+                        <div key={bu} className="border border-slate-200 rounded-lg p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-800">{bu}</span>
+                            <input
+                              type="checkbox"
+                              checked={enabled}
+                              onChange={(e) => toggleSharedAllocation(bu, e.target.checked)}
+                              disabled={bu === selectedExpense.businessUnit}
+                              title={bu === selectedExpense.businessUnit ? 'Primary business unit always included' : 'Include this BU in the split'}
+                            />
+                          </div>
+                          {enabled && (
+                            <Input
+                              label="Amount"
+                              type="number"
+                              step="0.01"
+                              name={`shared-${bu}`}
+                              value={allocation?.amount ?? ''}
+                              onChange={(e) => updateSharedAllocation(bu, e.target.value)}
+                              placeholder="e.g., 200"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Select
+                  label="Type of Service"
+                  name="typeOfService"
+                  value={selectedExpense.typeOfService}
+                  onChange={(e) => setSelectedExpense({ ...selectedExpense, typeOfService: e.target.value })}
+                  options={TYPES_OF_EXPENSE}
+                  required
+                />
+                <Select
+                  label="Cost Center"
+                  name="costCenter"
+                  value={selectedExpense.costCenter}
+                  onChange={(e) => setSelectedExpense({ ...selectedExpense, costCenter: e.target.value })}
+                  options={COST_CENTERS}
+                  required
+                />
+                <Select
+                  label="Approved By"
+                  name="approvedBy"
+                  value={selectedExpense.approvedBy}
+                  onChange={(e) => setSelectedExpense({ ...selectedExpense, approvedBy: e.target.value })}
+                  options={APPROVED_BY}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Service Handler"
+                  name="serviceHandler"
+                  value={selectedExpense.serviceHandler}
+                  onChange={(e) => setSelectedExpense({ ...selectedExpense, serviceHandler: e.target.value })}
+                  required
+                />
+                <Select
+                  label="Recurring"
+                  name="recurring"
+                  value={selectedExpense.recurring}
+                  onChange={(e) => setSelectedExpense({ ...selectedExpense, recurring: e.target.value })}
+                  options={RECURRING_OPTIONS}
+                  required
+                />
+              </div>
+              <div className="flex justify-end space-x-3">
+                <Button type="button" variant="secondary" onClick={() => setShowEditModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary">
+                  Update
+                </Button>
+              </div>
+            </form>
+          </Modal>
+        )}
+      </div>
+    </Layout>
+  );
+};
+
+export default Expenses;
