@@ -11,7 +11,7 @@ const AuthShell = ({ helperCard, children, footer, leftFooter }) => {
           <div className="relative flex h-full flex-col justify-between gap-10">
             {helperCard}
             {leftFooter && (
-              <div className="text-xs uppercase tracking-[0.35em] text-white/70">
+              <div className="text-xs uppercase tracking-[0.45em] text-white/60 text-center w-full">
                 {leftFooter}
               </div>
             )}

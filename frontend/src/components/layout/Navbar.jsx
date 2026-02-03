@@ -27,28 +27,9 @@ const Navbar = () => {
     </span>
   );
 
-  const NavLinks = () => (
-    <div className="hidden md:flex items-center gap-3 ml-4 md:ml-6 overflow-x-auto whitespace-nowrap pr-2">
-      {navigationItems.map(({ path, label }) => {
-        const active = window.location.pathname === path;
-        return (
-          <Link
-            key={path}
-            to={path}
-            className={`px-3 py-2 text-sm font-semibold rounded-md transition-colors ${
-              active ? 'bg-primary-50 text-primary-700 border border-primary-100' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            {label}
-          </Link>
-        );
-      })}
-    </div>
-  );
-
   return (
     <nav className="fixed top-0 inset-x-0 z-40 bg-white border-b border-slate-200 shadow-sm">
-      <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-10 gap-3">
+      <div className="w-full flex h-16 items-center justify-between px-4 sm:px-6 lg:px-10">
         <div className="flex items-center gap-4 min-w-0">
           <Link to="/dashboard" className="flex items-center gap-3">
             <div className="inline-flex h-12 w-16 items-center justify-center rounded-xl bg-black p-1 shadow">
@@ -59,10 +40,9 @@ const Navbar = () => {
               <p className="text-sm font-semibold text-slate-900">Expense Management Ecosystem</p>
             </div>
           </Link>
-          <NavLinks />
         </div>
 
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-4 ml-auto">
           <RoleBadge />
           <Link
             to="/notifications"

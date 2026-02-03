@@ -10,6 +10,7 @@ export const NAVIGATION_MAP = {
   super_admin: [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/expenses', icon: FileText, label: 'Global Expense Sheet' },
+    { path: '/add-expense', icon: Upload, label: 'Add New Entry' },
     { path: '/users', icon: Users, label: 'Manage Users' },
     { path: '/logs', icon: FileText, label: 'Logs' },
     { path: '/bulk-upload', icon: Upload, label: 'Bulk Upload' },
@@ -23,6 +24,7 @@ export const NAVIGATION_MAP = {
   business_unit_admin: [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/expenses', icon: FileText, label: 'Expense Sheet' },
+    { path: '/add-expense', icon: Upload, label: 'Add New Entry' },
     { path: '/users', icon: Users, label: 'Manage Users' },
     { path: '/logs', icon: FileText, label: 'Logs' },
   ],

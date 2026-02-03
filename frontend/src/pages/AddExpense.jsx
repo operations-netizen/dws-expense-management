@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import Card from '../components/common/Card';
 import Input from '../components/common/Input';
 import Select from '../components/common/Select';
 import Button from '../components/common/Button';
+import Modal from '../components/common/Modal';
+import { Plus, Trash2 } from 'lucide-react';
 import { createExpense } from '../services/expenseService';
+import { getCards, createCard, deleteCard } from '../services/cardService';
 import { useAuth } from '../context/AuthContext';
 import { 
   BUSINESS_UNITS,
@@ -23,7 +26,13 @@ const AddExpense = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [cardsLoading, setCardsLoading] = useState(false);
+  const [cards, setCards] = useState([]);
+  const [manageCardsOpen, setManageCardsOpen] = useState(false);
+  const [newCardNumber, setNewCardNumber] = useState('');
+  const [cardActionLoading, setCardActionLoading] = useState(false);
   const isBusinessUnitLocked = ['business_unit_admin', 'spoc'].includes(user?.role);
+  const canManageCards = ['super_admin', 'business_unit_admin'].includes(user?.role);
   const [formData, setFormData] = useState({
     cardNumber: '',
     cardAssignedTo: '',
@@ -45,27 +54,89 @@ const AddExpense = () => {
     sharedAllocations: [],
   });
 
+  useEffect(() => {
+    const fetchCards = async () => {
+      try {
+        setCardsLoading(true);
+        const response = await getCards();
+        if (response.success) {
+          setCards(response.data || []);
+        }
+      } catch (error) {
+        toast.error('Unable to load card numbers');
+      } finally {
+        setCardsLoading(false);
+      }
+    };
+
+    fetchCards();
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
+    const nextValue = name === 'cardNumber' ? value.toUpperCase() : value;
+
+    setFormData((prev) => {
+      const nextState = { ...prev, [name]: nextValue };
+
+      if (name === 'date' && nextValue) {
+        nextState.month = getMonthYear(nextValue);
+      }
+
+      if (name === 'particulars' && !prev.narration) {
+        nextState.narration = nextValue;
+      }
+
+      return nextState;
     });
+  };
 
-    // Auto-generate month when date changes
-    if (name === 'date' && value) {
-      setFormData((prev) => ({
-        ...prev,
-        month: getMonthYear(value),
-      }));
+  const refreshCards = async () => {
+    try {
+      setCardsLoading(true);
+      const response = await getCards();
+      if (response.success) {
+        setCards(response.data || []);
+      }
+    } catch (error) {
+      toast.error('Unable to refresh card list');
+    } finally {
+      setCardsLoading(false);
     }
+  };
 
-    // Auto-fill narration with particulars if empty
-    if (name === 'particulars' && !formData.narration) {
-      setFormData((prev) => ({
-        ...prev,
-        narration: value,
-      }));
+  const handleAddCard = async () => {
+    const trimmed = newCardNumber.trim().toUpperCase();
+    if (!trimmed) {
+      toast.error('Please enter a card number');
+      return;
+    }
+    try {
+      setCardActionLoading(true);
+      const response = await createCard({ number: trimmed });
+      if (response.success) {
+        toast.success('Card added successfully');
+        setNewCardNumber('');
+        await refreshCards();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to add card');
+    } finally {
+      setCardActionLoading(false);
+    }
+  };
+
+  const handleDeleteCard = async (cardId) => {
+    if (!window.confirm('Delete this card number?')) return;
+    try {
+      setCardActionLoading(true);
+      await deleteCard(cardId);
+      toast.success('Card deleted');
+      await refreshCards();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete card');
+    } finally {
+      setCardActionLoading(false);
     }
   };
 
@@ -162,16 +233,37 @@ const AddExpense = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Card Information */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Card Information</h3>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Card Information</h3>
+                {canManageCards && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setManageCardsOpen(true)}
+                  >
+                    Manage Cards
+                  </Button>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="Card Number"
-                  name="cardNumber"
-                  value={formData.cardNumber}
-                  onChange={handleChange}
-                  placeholder="e.g., M003"
-                  required
-                />
+                <div>
+                  <Input
+                    label="Card Number"
+                    name="cardNumber"
+                    value={formData.cardNumber}
+                    onChange={handleChange}
+                    placeholder="e.g., M003"
+                    list="card-number-list"
+                    hint="Select from the list or type a new card number."
+                    required
+                  />
+                  <datalist id="card-number-list">
+                    {cards.map((card) => (
+                      <option key={card._id} value={card.number} />
+                    ))}
+                  </datalist>
+                </div>
                 <Input
                   label="Card Assigned To"
                   name="cardAssignedTo"
@@ -403,11 +495,72 @@ const AddExpense = () => {
         {/* Info Card */}
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <p className="text-sm text-blue-800">
-            <strong>Note:</strong> After submission, this entry will be sent to your Business Unit Admin for approval.
-            You will be notified once it's approved or rejected.
+            <strong>Note:</strong> After submission, this entry will be marked approved and will be added to global expense sheet and your BU related sheet.
+            
           </p>
         </div>
       </div>
+
+      <Modal
+        isOpen={manageCardsOpen}
+        onClose={() => setManageCardsOpen(false)}
+        title="Manage Card Numbers"
+        size="md"
+      >
+        <div className="space-y-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="flex-1">
+              <Input
+                label="New Card Number"
+                name="newCardNumber"
+                value={newCardNumber}
+                onChange={(e) => setNewCardNumber(e.target.value.toUpperCase())}
+                placeholder="e.g., M003"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={handleAddCard}
+              disabled={cardActionLoading}
+              className="md:mb-1"
+            >
+              <Plus size={16} />
+              Add Card
+            </Button>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Available Cards</p>
+                <p className="text-xs text-slate-500">
+                  {cardsLoading ? 'Loading...' : `${cards.length} cards`}
+                </p>
+              </div>
+            </div>
+            <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto subtle-scrollbar">
+              {cards.length === 0 && !cardsLoading && (
+                <div className="px-4 py-6 text-sm text-slate-500">No cards added yet.</div>
+              )}
+              {cards.map((card) => (
+                <div key={card._id} className="flex items-center justify-between px-4 py-3">
+                  <span className="text-sm font-semibold text-slate-800">{card.number}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteCard(card._id)}
+                    className="inline-flex items-center gap-2 text-xs font-semibold text-rose-600 hover:text-rose-700"
+                    disabled={cardActionLoading}
+                  >
+                    <Trash2 size={14} />
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Modal>
     </Layout>
   );
 };

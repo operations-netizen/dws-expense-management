@@ -13,6 +13,7 @@ import expenseRoutes from './src/routes/expenseRoutes.js';
 import notificationRoutes from './src/routes/notificationRoutes.js';
 import serviceHandlerRoutes from './src/routes/serviceHandlerRoutes.js';
 import logRoutes from './src/routes/logRoutes.js';
+import cardRoutes from './src/routes/cardRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -36,6 +37,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/service-handler', serviceHandlerRoutes);
 app.use('/api/logs', logRoutes);
+app.use('/api/cards', cardRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -58,6 +60,7 @@ app.get('/', (req, res) => {
       notifications: '/api/notifications',
       serviceHandler: '/api/service-handler',
       logs: '/api/logs',
+      cards: '/api/cards',
       health: '/api/health',
     },
   });

@@ -59,35 +59,26 @@ const Login = () => {
 
   const helperCard = (
     <div className="space-y-10">
-      <div className="space-y-6">
-        <div className="inline-flex items-center gap-3 text-xs uppercase tracking-[0.35em] text-white/70">
+      <div className="space-y-4">
+        <div className="inline-flex items-center gap-3 text-xs uppercase tracking-[0.35em] text-white/60">
           DWS
         </div>
         <div className="space-y-2">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-white">
             Digital Web Solutions
           </h2>
-          <p className="text-lg text-white/80">Group of Companies</p>
+          <p className="text-base text-white/75">Group of Companies</p>
         </div>
-        <p className="text-sm italic text-white/60">Together, We Build What&apos;s Next</p>
+        <p className="text-sm italic text-white/55">Together, We Build What&apos;s Next</p>
       </div>
 
-      <div className="space-y-4">
-        <h3 className="text-3xl font-semibold text-white">Expense Management Ecosystem</h3>
+      <div className="space-y-3">
+        <h3 className="text-2xl md:text-3xl font-semibold text-white">Expense Management Ecosystem</h3>
         <p className="text-sm text-white/70 leading-relaxed">
-          Manage every stream of spend in one place with smart controls across cards, services, and business units.
+          Unified spend control across cards, services, and business units.
         </p>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="h-14 w-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
-          <img src={dwsLogo} alt="DWS" className="h-9 object-contain" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-white">Digital Web Solutions</p>
-          <p className="text-xs text-white/60">Group of Companies</p>
-        </div>
-      </div>
     </div>
   );
 
