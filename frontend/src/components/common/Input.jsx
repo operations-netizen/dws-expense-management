@@ -12,7 +12,7 @@ const Input = ({
   icon,
   className = '',
   ...props
-}) => {
+}) => { 
   const baseField =
     'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 transition duration-150 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:bg-slate-100 disabled:cursor-not-allowed';
 

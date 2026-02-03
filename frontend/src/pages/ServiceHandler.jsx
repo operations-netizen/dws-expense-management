@@ -11,7 +11,7 @@ import { getMyServices, respondToRenewal, requestServiceDisable } from '../servi
 import { getRenewalLogs } from '../services/renewalLogService';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import toast from 'react-hot-toast';
-
+ 
 const ServiceHandler = () => {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);

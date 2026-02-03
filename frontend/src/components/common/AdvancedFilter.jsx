@@ -4,7 +4,7 @@ import Button from './Button';
 import Select from './Select';
 import Input from './Input';
 import Modal from './Modal';
-import {
+import { 
   BUSINESS_UNITS,
   TYPES_OF_EXPENSE,
   COST_CENTERS,

@@ -8,7 +8,7 @@ import {
   getMe,
   updateMe,
   getUsers,
-  updateUser,
+  updateUser, 
   deleteUser,
 } from '../controllers/authController.js';
 import { protect, authorize } from '../middleware/auth.js';
@@ -26,7 +26,7 @@ router.get('/me', protect, getMe);
 router.put('/me', protect, updateMe);
 router.post('/register', protect, authorize('super_admin', 'business_unit_admin'), register);
 router.get('/users', protect, authorize('super_admin', 'business_unit_admin'), getUsers);
-router.put('/users/:id', protect, authorize('super_admin'), updateUser);
+router.put('/users/:id', protect, authorize('super_admin', 'business_unit_admin'), updateUser);
 router.delete('/users/:id', protect, authorize('super_admin'), deleteUser);
 
 export default router;

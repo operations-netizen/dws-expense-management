@@ -11,7 +11,7 @@ import { protect, authorize } from '../middleware/auth.js';
 const router = express.Router();
 
 router.use(protect);
-
+ 
 // Service handler routes
 router.get('/my-services', authorize('service_handler'), getMyServices);
 router.get('/logs/:entryId', authorize('service_handler'), getRenewalLogs);

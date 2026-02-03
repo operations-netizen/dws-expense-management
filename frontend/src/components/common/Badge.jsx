@@ -7,7 +7,7 @@ const Badge = ({ children, variant = 'default', className = '' }) => {
     warning: 'bg-amber-100 text-amber-800 border border-amber-200',
     danger: 'bg-rose-100 text-rose-800 border border-rose-200',
     info: 'bg-sky-100 text-sky-800 border border-sky-200',
-  };
+  }; 
 
   const normalizedChild = typeof children === 'string' ? children.trim() : '';
   const colorClass =

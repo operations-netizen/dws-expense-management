@@ -7,7 +7,7 @@ import { getLogs } from '../services/logService';
 import { formatCurrency, formatDate, formatDateTime } from '../utils/formatters';
 import { Search } from 'lucide-react';
 import toast from 'react-hot-toast';
-
+ 
 const toneForAction = (type) => {
   switch (type) {
     case 'purchase':

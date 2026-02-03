@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const ExpenseTable = ({
   expenses,
-  onEdit,
+  onEdit, 
   onDelete,
   loading,
   showDuplicateColumn = true,

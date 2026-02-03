@@ -13,7 +13,7 @@ import Profile from './pages/Profile';
 import ServiceHandler from './pages/ServiceHandler';
 import Logs from './pages/Logs';
 import Loading from './components/common/Loading';
-
+ 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -91,11 +91,7 @@ function AppContent() {
         />
         <Route
           path="/login/:role"
-          element={
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          }
+          element={<Navigate to="/login" replace />}
         />
 
         {/* Protected Routes */}

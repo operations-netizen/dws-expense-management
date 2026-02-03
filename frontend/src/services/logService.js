@@ -8,3 +8,4 @@ export const getLogs = async () => {
 export default {
   getLogs,
 };
+ 

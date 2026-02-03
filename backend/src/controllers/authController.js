@@ -7,7 +7,7 @@ import { generateToken } from '../utils/jwt.js';
 export const getBootstrapStatus = async (req, res) => {
   try {
     const superAdminExists = await User.exists({ role: 'super_admin' });
-
+ 
     res.status(200).json({
       success: true,
       data: {
@@ -166,27 +166,13 @@ export const register = async (req, res) => {
 // @access  Public
 export const login = async (req, res) => {
   try {
-    const { email, password, role: requestedRole } = req.body;
-    const roleLabel = {
-      super_admin: 'Super Admin',
-      mis_manager: 'MIS Manager',
-      business_unit_admin: 'BU Admin',
-      spoc: 'SPOC',
-      service_handler: 'Service Handler',
-    };
+    const { email, password } = req.body;
 
     // Validate email & password
     if (!email || !password) {
       return res.status(400).json({
         success: false,
         message: 'Please provide email and password',
-      });
-    }
-
-    if (!requestedRole) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please select your role to sign in.',
       });
     }
 
@@ -215,14 +201,6 @@ export const login = async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
-      });
-    }
-
-    // Enforce role match with the selected role
-    if (requestedRole && user.role !== requestedRole) {
-      return res.status(401).json({
-        success: false,
-        message: `This account belongs to ${roleLabel[user.role] || 'another role'}. Please choose ${roleLabel[user.role] || 'the correct role'} from the role selector.`,
       });
     }
 
@@ -296,14 +274,14 @@ export const getUsers = async (req, res) => {
 
 // @desc    Update user
 // @route   PUT /api/auth/users/:id
-// @access  Private (Super Admin)
+// @access  Private (Super Admin, Business Unit Admin)
 export const updateUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const { name, email, password, role, businessUnit, cardNumber, isActive } = req.body;
+    const currentUserRole = req.user.role;
+    const roleRequiresBusinessUnit = (value) => ['business_unit_admin', 'spoc', 'service_handler'].includes(value);
 
+    const user = await User.findById(req.params.id).select('+password');
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -311,11 +289,130 @@ export const updateUser = async (req, res) => {
       });
     }
 
+    if (currentUserRole === 'business_unit_admin') {
+      const allowedRoles = ['spoc', 'service_handler'];
+
+      if (!allowedRoles.includes(user.role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Business Unit Admin can only update SPOC and Service Handler accounts',
+        });
+      }
+
+      if (user.businessUnit !== req.user.businessUnit) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only update users from your own business unit',
+        });
+      }
+
+      if (role && !allowedRoles.includes(role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Business Unit Admin can only assign SPOC or Service Handler roles',
+        });
+      }
+
+      if (businessUnit && businessUnit !== req.user.businessUnit) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only assign your own business unit',
+        });
+      }
+
+      if (typeof isActive !== 'undefined') {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not allowed to change user status',
+        });
+      }
+    }
+
+    if (email && email !== user.email) {
+      const existing = await User.findOne({ email });
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: 'A user already exists with this email',
+        });
+      }
+      user.email = email;
+    }
+
+    if (name) {
+      user.name = name;
+    }
+
+    const nextRole = typeof role !== 'undefined' && role !== '' ? role : user.role;
+    const nextBusinessUnit =
+      typeof businessUnit !== 'undefined' ? (businessUnit || null) : user.businessUnit;
+
+    if (roleRequiresBusinessUnit(nextRole) && !nextBusinessUnit) {
+      return res.status(400).json({
+        success: false,
+        message: 'Business unit is required for this role',
+      });
+    }
+
+    if (typeof role !== 'undefined' && role !== '') {
+      user.role = role;
+    }
+
+    if (typeof businessUnit !== 'undefined') {
+      user.businessUnit = businessUnit || null;
+    } else if (!roleRequiresBusinessUnit(nextRole)) {
+      user.businessUnit = null;
+    }
+
+    if (typeof cardNumber !== 'undefined') {
+      user.cardNumber = cardNumber || null;
+    }
+
+    if (typeof isActive !== 'undefined') {
+      user.isActive = isActive;
+    }
+
+    if (password) {
+      if (password.length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: 'Password must be at least 6 characters',
+        });
+      }
+      user.password = password;
+    }
+
+    await user.save();
+
     res.status(200).json({
       success: true,
-      data: user,
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        businessUnit: user.businessUnit,
+        cardNumber: user.cardNumber,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'A user already exists with this email',
+      });
+    }
+
+    if (error.name === 'ValidationError' || error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: error.message,

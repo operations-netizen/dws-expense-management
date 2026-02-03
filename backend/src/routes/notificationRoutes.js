@@ -9,7 +9,7 @@ import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.use(protect);
+router.use(protect); 
 
 router.get('/', getNotifications);
 router.put('/read-all', markAllAsRead);

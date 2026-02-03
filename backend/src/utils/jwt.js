@@ -11,7 +11,7 @@ export const verifyToken = (token) => {
     return jwt.verify(token, process.env.JWT_SECRET);
   } catch (error) {
     return null;
-  }
+  } 
 };
 
 export const generateApprovalToken = (entryId) => {

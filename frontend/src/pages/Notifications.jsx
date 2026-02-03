@@ -6,7 +6,7 @@ import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import Loading from '../components/common/Loading';
 import Modal from '../components/common/Modal';
-import {
+import { 
   getNotifications,
   markAsRead,
   markAllAsRead,

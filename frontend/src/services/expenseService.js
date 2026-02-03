@@ -10,7 +10,7 @@ const buildQueryString = (filters = {}) => {
   const queryString = params.toString();
   return queryString ? `?${queryString}` : '';
 };
-
+ 
 export const getExpenses = async (filters = {}) => {
   const query = buildQueryString(filters);
   const response = await api.get(`/expenses${query}`);

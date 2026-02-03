@@ -12,7 +12,7 @@ export const TYPES_OF_EXPENSE = [
   'Staff & welfare',
   'Tools & Service',
 ];
-
+ 
 export const COST_CENTERS = ['Ops', 'FE', 'OH Exps', 'Support', 'Management EXPS'];
 
 export const APPROVED_BY = [

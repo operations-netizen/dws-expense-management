@@ -9,7 +9,7 @@ COPY . .
 RUN if [ -f /app/src/backend/package.json ]; then ln -s /app/src/backend /app/app; \
     elif [ -f /app/src/package.json ]; then ln -s /app/src /app/app; \
     else echo "package.json not found in build context" && ls -la /app/src && exit 1; fi
-
+ 
 WORKDIR /app/app
 RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
 

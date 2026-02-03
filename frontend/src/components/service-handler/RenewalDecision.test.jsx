@@ -8,7 +8,7 @@ vi.mock('../common/Button', () => ({
       {children}
     </button>
   ),
-}));
+})); 
 
 vi.mock('lucide-react', () => ({
   CheckCircle: () => <span>check</span>,

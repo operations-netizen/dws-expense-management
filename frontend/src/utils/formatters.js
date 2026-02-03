@@ -12,7 +12,7 @@ export const formatDate = (date, formatStr = 'dd-MMM-yy') => {
   if (!date) return '';
   return format(new Date(date), formatStr);
 };
-
+ 
 export const formatDateTime = (date) => {
   if (!date) return '';
   return format(new Date(date), 'dd-MMM-yy HH:mm');

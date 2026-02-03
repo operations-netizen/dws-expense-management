@@ -7,7 +7,7 @@ const Sidebar = () => {
   const location = useLocation();
   const items = getNavigationForRole(user?.role);
   const isActive = (path) => location.pathname === path;
-
+ 
   return (
     <aside className="hidden md:flex fixed top-0 bottom-0 left-0 w-72 flex-shrink-0 flex-col border-r border-white/60 bg-white/85 backdrop-blur-2xl shadow-2xl pt-24 pb-10 overflow-y-auto subtle-scrollbar">
       <div className="flex-1 px-6 space-y-8">

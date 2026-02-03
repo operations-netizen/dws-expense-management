@@ -9,7 +9,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
     lg: 'max-w-4xl',
     xl: 'max-w-6xl',
   };
-
+ 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}></div>

@@ -1,7 +1,7 @@
 import ExpenseEntry from '../models/ExpenseEntry.js';
 import RenewalLog from '../models/RenewalLog.js';
 
-// Normalize a log record for UI
+// Normalize a log record for UI 
 const mapPurchaseLog = (entry) => ({
   id: entry._id,
   type: 'purchase',

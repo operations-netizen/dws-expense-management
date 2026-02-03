@@ -6,7 +6,7 @@ import { logout } from '../../services/authService';
 import { getRoleName } from '../../utils/formatters';
 import { getNavigationForRole } from '../../utils/navigation';
 import dwsLogo from '../../assets/dws.png';
-
+ 
 const Navbar = () => {
   const { user } = useAuth();
   const navigate = useNavigate();

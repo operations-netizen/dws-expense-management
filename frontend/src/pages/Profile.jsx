@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { getRoleName, formatDateTime } from '../utils/formatters';
 import toast from 'react-hot-toast';
 import { updateMe } from '../services/authService';
-
+ 
 const Profile = () => {
   const { user, setUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);

@@ -9,7 +9,7 @@ const createTransporter = () =>
       pass: process.env.EMAIL_PASSWORD,
     },
   });
-
+ 
 // Send expense entry approval email to Business Unit Admin
 export const sendApprovalEmail = async (adminEmail, entryDetails, approvalToken) => {
   const transporter = createTransporter();

@@ -10,7 +10,7 @@ const renewalLogSchema = new mongoose.Schema(
     serviceHandler: {
       type: String,
       required: true,
-    },
+    }, 
     action: {
       type: String,
       enum: ['Continue', 'Cancel', 'DisableByMIS', 'SharedEdit', 'DuplicateOverride', 'DeleteEntry'],

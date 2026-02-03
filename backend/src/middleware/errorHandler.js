@@ -10,7 +10,7 @@ const errorHandler = (err, req, res, next) => {
     const message = 'Resource not found';
     error = { message, statusCode: 404 };
   }
-
+ 
   // Mongoose duplicate key
   if (err.code === 11000) {
     const message = 'Duplicate field value entered';

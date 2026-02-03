@@ -10,7 +10,7 @@ const Card = ({ title, subtitle, children, className = '', headerAction }) => {
           {headerAction && <div className="flex-shrink-0">{headerAction}</div>}
         </div>
       )}
-      {children}
+      {children} 
     </div>
   );
 };

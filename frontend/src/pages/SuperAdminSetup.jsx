@@ -7,7 +7,7 @@ import Button from '../components/common/Button';
 import Loading from '../components/common/Loading';
 import AuthShell from '../components/auth/AuthShell';
 import { superAdminSignup, getBootstrapStatus } from '../services/authService';
-
+ 
 const SuperAdminSetup = () => {
   const navigate = useNavigate();
   const [statusLoading, setStatusLoading] = useState(true);

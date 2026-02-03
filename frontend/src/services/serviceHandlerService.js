@@ -11,7 +11,7 @@ export const respondToRenewal = async (entryId, continueService, reason) => {
     {
       continueService,
       reason,
-    }
+    } 
   );
   return response.data;
 };

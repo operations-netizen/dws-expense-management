@@ -8,3 +8,4 @@ router.use(protect);
 router.get('/', authorize('super_admin', 'mis_manager', 'business_unit_admin'), getLogs);
 
 export default router;
+ 

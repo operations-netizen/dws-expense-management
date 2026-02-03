@@ -9,7 +9,7 @@ const RenewalDecision = ({
   onClose,
 }) => {
   return (
-    <>
+    <> 
       <div>
         <p className="text-gray-700 mb-4">
           Do you want to continue with this service subscription?

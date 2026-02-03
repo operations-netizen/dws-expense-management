@@ -10,7 +10,7 @@ import RenewalLog from '../models/RenewalLog.js';
 // Resets reminder/auto-cancel flags so the new cycle can notify properly.
 const advanceNextRenewalDate = (entry) => {
   if (!entry?.nextRenewalDate) return false;
-  const now = new Date();
+  const now = new Date(); 
   let nextDate = new Date(entry.nextRenewalDate);
   const original = nextDate.getTime();
 

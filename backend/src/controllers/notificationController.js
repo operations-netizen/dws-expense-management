@@ -5,7 +5,7 @@ import Notification from '../models/Notification.js';
 // @access  Private
 export const getNotifications = async (req, res) => {
   try {
-    const { isRead } = req.query;
+    const { isRead } = req.query; 
 
     let query = { user: req.user._id };
 

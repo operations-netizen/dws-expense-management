@@ -5,7 +5,7 @@ import {
   Upload,
   Package,
 } from 'lucide-react';
-
+ 
 export const NAVIGATION_MAP = {
   super_admin: [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },

@@ -10,7 +10,7 @@ const Loading = ({ size = 'md', fullScreen = false, label = 'Loading data' }) =>
       <div className={`relative ${sizes[size]}`}>
         <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-black via-black to-neutral-800 animate-spin blur-[1px] opacity-70"></div>
         <div className="absolute inset-1 rounded-full bg-white/90"></div>
-      </div>
+      </div> 
       <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{label}</p>
     </div>
   );

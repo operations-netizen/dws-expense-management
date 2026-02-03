@@ -8,7 +8,7 @@ import Select from '../components/common/Select';
 import ExpenseTable from '../components/dashboard/ExpenseTable';
 import Modal from '../components/common/Modal';
 import AdvancedFilter, { ADVANCED_FILTER_DEFAULTS } from '../components/common/AdvancedFilter';
-import {
+import { 
   getExpenses,
   exportExpenses,
   deleteExpense,

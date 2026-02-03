@@ -6,7 +6,7 @@ import morgan from 'morgan';
 import connectDB from './src/config/database.js';
 import errorHandler from './src/middleware/errorHandler.js';
 import { initializeCronJobs } from './src/services/cronJobs.js';
-
+ 
 // Import routes
 import authRoutes from './src/routes/authRoutes.js';
 import expenseRoutes from './src/routes/expenseRoutes.js';

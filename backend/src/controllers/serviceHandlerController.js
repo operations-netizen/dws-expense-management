@@ -8,7 +8,7 @@ import { createNotification } from '../controllers/notificationController.js';
 const buildNamePattern = (name) => {
   const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const tokens = name
-    .split(' ')
+    .split(' ') 
     .map((t) => t.trim())
     .filter(Boolean)
     .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));

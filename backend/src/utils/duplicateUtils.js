@@ -9,7 +9,7 @@ const normalizeNumber = (value) => {
   const rounded = Math.round(num * 100) / 100;
   return rounded.toFixed(2);
 };
-
+ 
 const normalizeDateKey = (value) => {
   if (!value) return '';
   const date = value instanceof Date ? value : new Date(value);

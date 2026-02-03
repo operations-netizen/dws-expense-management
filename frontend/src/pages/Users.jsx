@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { USER_ROLES, BUSINESS_UNITS } from '../utils/constants';
 import { getRoleName } from '../utils/formatters';
 import toast from 'react-hot-toast';
-
+ 
 const Users = () => {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);

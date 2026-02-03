@@ -20,3 +20,4 @@ export const deleteNotification = async (id) => {
   const response = await api.delete(`/notifications/${id}`);
   return response.data;
 };
+ 
