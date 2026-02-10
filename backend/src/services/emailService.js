@@ -9,6 +9,32 @@ const createTransporter = () =>
       pass: process.env.EMAIL_PASSWORD,
     },
   });
+
+const getFrontendBaseUrl = () => (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+
+const buildFrontendUrl = (path = '') => {
+  const baseUrl = getFrontendBaseUrl();
+  if (!path) return baseUrl;
+  return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+};
+
+const normalizeEmailList = (emails = [], exclude = []) => {
+  const input = Array.isArray(emails) ? emails : [emails];
+  const excluded = new Set(
+    (Array.isArray(exclude) ? exclude : [exclude])
+      .filter(Boolean)
+      .map((email) => String(email).trim().toLowerCase())
+  );
+
+  return [
+    ...new Set(
+      input
+        .filter(Boolean)
+        .map((email) => String(email).trim())
+        .filter((email) => email && !excluded.has(email.toLowerCase()))
+    ),
+  ];
+};
  
 // Send expense entry approval email to Business Unit Admin
 export const sendApprovalEmail = async (adminEmail, entryDetails, approvalToken) => {
@@ -493,8 +519,13 @@ export const sendSpocEntryEmail = async (spocEmail, entryDetails, uploaderName) 
 };
 
 // Send renewal reminder to Service Handler
-export const sendRenewalReminderEmail = async (handlerEmail, serviceDetails) => {
+export const sendRenewalReminderEmail = async (handlerEmail, serviceDetails, options = {}) => {
   const transporter = createTransporter();
+  const { ccEmails = [] } = options;
+  const frontendBaseUrl = getFrontendBaseUrl();
+  const notificationsUrl = buildFrontendUrl('/notifications');
+  const loginUrl = buildFrontendUrl('/login');
+  const ccList = normalizeEmailList(ccEmails, [handlerEmail]);
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -550,11 +581,15 @@ export const sendRenewalReminderEmail = async (handlerEmail, serviceDetails) => 
           </div>
 
           <p><strong>Action Required:</strong></p>
-          <p>Please log in to your dashboard and confirm whether you want to continue with this service or cancel it.</p>
-          <p>If you wish to cancel, please ensure you cancel the subscription manually before clicking the disable button in your dashboard.</p>
+          <p>Please confirm whether you want to Cancel or Continue this subscription before renewal.</p>
+          <p>Please reply to this email with your decision: <strong>Cancel</strong> or <strong>Continue</strong>.</p>
+          <p>You can also log in and update it in the platform: <a href="${frontendBaseUrl}">${frontendBaseUrl}</a></p>
+          <p>Notifications page: <a href="${notificationsUrl}">${notificationsUrl}</a></p>
+          <p>Direct login link: <a href="${loginUrl}">${loginUrl}</a></p>
+          <p>If no reply/action is received, MIS will cancel manually before renewal to avoid charges.</p>
         </div>
         <div class="footer">
-          <p>This is an automated email from Expense Management System. Please do not reply.</p>
+          <p>This is an automated email from Expense Management System. Please reply all with Cancel or Continue.</p>
         </div>
       </div>
     </body>
@@ -564,7 +599,8 @@ export const sendRenewalReminderEmail = async (handlerEmail, serviceDetails) => 
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: handlerEmail,
-    subject: `Service Renewal Reminder - ${serviceDetails.particulars}`,
+    ...(ccList.length ? { cc: ccList.join(', ') } : {}),
+    subject: `Service Renewal Reminder (Continue or Cancel) - ${serviceDetails.particulars}`,
     html: htmlContent,
   };
 
@@ -579,8 +615,18 @@ export const sendRenewalReminderEmail = async (handlerEmail, serviceDetails) => 
 };
 
 // Send auto-cancellation notice due to no response
-export const sendAutoCancellationNoticeEmail = async (recipientEmail, serviceDetails, daysBefore = 2) => {
+export const sendAutoCancellationNoticeEmail = async (
+  recipientEmail,
+  serviceDetails,
+  daysBefore = 2,
+  options = {}
+) => {
   const transporter = createTransporter();
+  const { ccEmails = [] } = options;
+  const frontendBaseUrl = getFrontendBaseUrl();
+  const notificationsUrl = buildFrontendUrl('/notifications');
+  const loginUrl = buildFrontendUrl('/login');
+  const ccList = normalizeEmailList(ccEmails, [recipientEmail]);
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -596,6 +642,7 @@ export const sendAutoCancellationNoticeEmail = async (recipientEmail, serviceDet
         .detail-label { font-weight: bold; color: #6b7280; }
         .detail-value { color: #111827; }
         .warning { background-color: #fef2f2; padding: 15px; border-left: 4px solid #ef4444; margin: 15px 0; }
+        .footer { text-align: center; color: #6b7280; font-size: 12px; margin-top: 20px; }
       </style>
     </head>
     <body>
@@ -604,9 +651,9 @@ export const sendAutoCancellationNoticeEmail = async (recipientEmail, serviceDet
           <h2>No Response Received - Auto Cancellation Notice</h2>
         </div>
         <div class="content">
-          <p>We did not receive a response to the renewal reminder for the service below. As the renewal is in ${daysBefore} days, please disable/cancel this subscription.</p>
+          <p>We did not receive a response to the renewal reminder for the service below. Renewal is in ${daysBefore} days.</p>
           <div class="warning">
-            <strong>Action Required:</strong> Cancel/disable this service before renewal to avoid charges.
+            <strong>Action Required:</strong> Please confirm Cancel or Continue before renewal.
           </div>
           <div class="details">
             <h3>Service Details</h3>
@@ -618,6 +665,14 @@ export const sendAutoCancellationNoticeEmail = async (recipientEmail, serviceDet
             <div class="detail-row"><span class="detail-label">Amount:</span><span class="detail-value">${serviceDetails.amount} ${serviceDetails.currency}</span></div>
             <div class="detail-row"><span class="detail-label">Recurring:</span><span class="detail-value">${serviceDetails.recurring}</span></div>
           </div>
+          <p>Please reply to this email with your decision: <strong>Cancel</strong> or <strong>Continue</strong>.</p>
+          <p>You can also log in and update it in the platform: <a href="${frontendBaseUrl}">${frontendBaseUrl}</a></p>
+          <p>Notifications page: <a href="${notificationsUrl}">${notificationsUrl}</a></p>
+          <p>Direct login link: <a href="${loginUrl}">${loginUrl}</a></p>
+          <p>If no reply/action is received, MIS will cancel manually before renewal to avoid charges.</p>
+        </div>
+        <div class="footer">
+          <p>This is an automated email from Expense Management System. Please reply all with Cancel or Continue.</p>
         </div>
       </div>
     </body>
@@ -627,6 +682,7 @@ export const sendAutoCancellationNoticeEmail = async (recipientEmail, serviceDet
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: recipientEmail,
+    ...(ccList.length ? { cc: ccList.join(', ') } : {}),
     subject: `Auto Cancellation Notice - ${serviceDetails.particulars}`,
     html: htmlContent,
   };

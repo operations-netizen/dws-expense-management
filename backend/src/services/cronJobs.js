@@ -138,6 +138,11 @@ export const scheduleRenewalReminders = () => {
       });
 
       console.log(`Found ${upcomingRenewals.length} services due for renewal`);
+      const misManagers = await User.find({
+        role: 'mis_manager',
+        email: { $exists: true, $nin: [null, ''] },
+      }).select('email');
+      const misEmails = [...new Set(misManagers.map((mis) => mis.email).filter(Boolean))];
 
       for (const entry of upcomingRenewals) {
         // Skip if already acted on for this cycle
@@ -155,7 +160,7 @@ export const scheduleRenewalReminders = () => {
 
         if (serviceHandler) {
           // Send email
-          await sendRenewalReminderEmail(serviceHandler.email, entry);
+          await sendRenewalReminderEmail(serviceHandler.email, entry, { ccEmails: misEmails });
 
           // Create notification
           await createNotification(
@@ -331,6 +336,7 @@ export const scheduleAutoCancellationNotices = () => {
 
       const misManagers = await User.find({ role: 'mis_manager' });
       const superAdmins = await User.find({ role: 'super_admin' });
+      const misEmails = [...new Set(misManagers.map((mis) => mis.email).filter(Boolean))];
 
       for (const entry of candidates) {
         // Check if a renewal log already exists for this cycle
@@ -344,13 +350,16 @@ export const scheduleAutoCancellationNotices = () => {
           businessUnit: entry.businessUnit,
         });
 
-        // Email handler (if found) and MIS
+        // Email handler with MIS in CC; fallback to direct MIS notice if handler email is unavailable.
         if (handlerUser) {
-          await sendAutoCancellationNoticeEmail(handlerUser.email, entry, daysBefore);
+          await sendAutoCancellationNoticeEmail(handlerUser.email, entry, daysBefore, {
+            ccEmails: misEmails,
+          });
+        } else if (misEmails.length) {
+          await Promise.all(
+            misEmails.map((misEmail) => sendAutoCancellationNoticeEmail(misEmail, entry, daysBefore))
+          );
         }
-        await Promise.all(
-          misManagers.map((mis) => sendAutoCancellationNoticeEmail(mis.email, entry, daysBefore))
-        );
 
         // Notify MIS & Super Admin internally
         const notifPayload = {
