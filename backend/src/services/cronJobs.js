@@ -256,6 +256,7 @@ export const scheduleRenewalFlagReset = () => {
               $set: {
                 nextRenewalDate: nextDate,
                 renewalNotificationSent: false,
+                autoCancellationNotificationSent: false,
               },
             },
           },
@@ -339,9 +340,22 @@ export const scheduleAutoCancellationNotices = () => {
       const misEmails = [...new Set(misManagers.map((mis) => mis.email).filter(Boolean))];
 
       for (const entry of candidates) {
+        // Atomic claim to avoid duplicate emails when multiple backend instances run cron at once.
+        const claim = await ExpenseEntry.updateOne(
+          { _id: entry._id, autoCancellationNotificationSent: false },
+          { $set: { autoCancellationNotificationSent: true } }
+        );
+        if (!claim.modifiedCount) continue;
+
         // Check if a renewal log already exists for this cycle
         const priorResponse = await hasRenewalAction(entry._id, entry.nextRenewalDate);
-        if (priorResponse) continue;
+        if (priorResponse) {
+          await ExpenseEntry.updateOne(
+            { _id: entry._id },
+            { $set: { autoCancellationNotificationSent: false } }
+          );
+          continue;
+        }
 
         // Find service handler user by name
         const handlerUser = await User.findOne({
@@ -351,14 +365,24 @@ export const scheduleAutoCancellationNotices = () => {
         });
 
         // Email handler with MIS in CC; fallback to direct MIS notice if handler email is unavailable.
-        if (handlerUser) {
-          await sendAutoCancellationNoticeEmail(handlerUser.email, entry, daysBefore, {
+        let emailSent = false;
+        if (handlerUser?.email) {
+          emailSent = await sendAutoCancellationNoticeEmail(handlerUser.email, entry, daysBefore, {
             ccEmails: misEmails,
           });
         } else if (misEmails.length) {
-          await Promise.all(
+          const emailResults = await Promise.all(
             misEmails.map((misEmail) => sendAutoCancellationNoticeEmail(misEmail, entry, daysBefore))
           );
+          emailSent = emailResults.some(Boolean);
+        }
+
+        if (!emailSent) {
+          await ExpenseEntry.updateOne(
+            { _id: entry._id },
+            { $set: { autoCancellationNotificationSent: false } }
+          );
+          continue;
         }
 
         // Notify MIS & Super Admin internally
@@ -396,10 +420,6 @@ export const scheduleAutoCancellationNotices = () => {
             )
           ),
         ]);
-
-        // Mark as sent to avoid duplicates
-        entry.autoCancellationNotificationSent = true;
-        await entry.save();
       }
       console.log('Auto-cancellation notice cron job completed');
     } catch (error) {
