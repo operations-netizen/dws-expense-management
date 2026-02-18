@@ -71,7 +71,7 @@ export const sendApprovalEmail = async (adminEmail, entryDetails, approvalToken)
         </div>
         <div class="content">
           <p>Dear Business Unit Admin,</p>
-          <p>A new expense entry has been submitted by your SPOC and requires your approval.</p>
+          <p>A new expense entry has been submitted by your SPOC .</p>
           
           <div class="details">
             <h3>Expense Entry Details:</h3>
@@ -582,8 +582,8 @@ export const sendRenewalReminderEmail = async (handlerEmail, serviceDetails, opt
 
           <p><strong>Action Required:</strong></p>
           <p>Please confirm whether you want to Cancel or Continue this subscription before renewal.</p>
-          <p>Please reply to this email with your decision: <strong>Cancel</strong> or <strong>Continue</strong>.</p>
-          <p>You can also log in and update it in the platform: <a href="${frontendBaseUrl}">${frontendBaseUrl}</a></p>
+          <p>Please reply to all in this email with your decision: <strong>Cancel</strong> or <strong>Continue</strong>.</p>
+          <p>You can also log in and update it in the platform and update your decision: <a href="${frontendBaseUrl}">${frontendBaseUrl}</a></p>
           <p>Notifications page: <a href="${notificationsUrl}">${notificationsUrl}</a></p>
           <p>Direct login link: <a href="${loginUrl}">${loginUrl}</a></p>
           <p>If no reply/action is received, MIS will cancel manually before renewal to avoid charges.</p>
@@ -665,8 +665,8 @@ export const sendAutoCancellationNoticeEmail = async (
             <div class="detail-row"><span class="detail-label">Amount:</span><span class="detail-value">${serviceDetails.amount} ${serviceDetails.currency}</span></div>
             <div class="detail-row"><span class="detail-label">Recurring:</span><span class="detail-value">${serviceDetails.recurring}</span></div>
           </div>
-          <p>Please reply to this email with your decision: <strong>Cancel</strong> or <strong>Continue</strong>.</p>
-          <p>You can also log in and update it in the platform: <a href="${frontendBaseUrl}">${frontendBaseUrl}</a></p>
+          <p>Please reply to all in this email with your decision: <strong>Cancel</strong> or <strong>Continue</strong>.</p>
+          <p>You can also log in and update it in the platform with you decision: <a href="${frontendBaseUrl}">${frontendBaseUrl}</a></p>
           <p>Notifications page: <a href="${notificationsUrl}">${notificationsUrl}</a></p>
           <p>Direct login link: <a href="${loginUrl}">${loginUrl}</a></p>
           <p>If no reply/action is received, MIS will cancel manually before renewal to avoid charges.</p>
