@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import ExpenseEntry from '../models/ExpenseEntry.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
@@ -118,14 +119,80 @@ const parseFilterDate = (value, endOfDay = false) => {
   return new Date(value);
 };
 
-const normalizeNameKey = (value) => (value ? value.toString().trim().toLowerCase() : '');
-
 const parseNameList = (value) =>
   value
     ?.toString()
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean) || [];
+
+const parseBooleanFlag = (value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return ['true', '1', 'yes', 'on'].includes(normalized);
+  }
+  return false;
+};
+
+const isBlank = (value) =>
+  value === undefined ||
+  value === null ||
+  (typeof value === 'string' && value.trim() === '');
+
+const omitBlankFields = (payload, fields = []) => {
+  fields.forEach((field) => {
+    if (isBlank(payload[field])) {
+      delete payload[field];
+    }
+  });
+  return payload;
+};
+
+const resolveUserEmailsByNames = async ({
+  names = [],
+  businessUnit,
+  roles = null,
+}) => {
+  const emails = new Set();
+
+  for (const rawName of names) {
+    const token = rawName?.trim();
+    if (!token) continue;
+
+    // Allow direct email entry in Card Assigned / Service Handler fields.
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(token)) {
+      emails.add(token);
+      continue;
+    }
+
+    const baseQuery = {
+      isActive: true,
+      name: new RegExp(`^${escapeRegex(token)}$`, 'i'),
+      ...(roles?.length ? { role: { $in: roles } } : {}),
+    };
+
+    const withBuQuery = businessUnit
+      ? {
+          ...baseQuery,
+          $or: [{ businessUnit }, { businessUnit: null }],
+        }
+      : baseQuery;
+
+    let users = await User.find(withBuQuery).select('email').lean();
+    if (!users.length && businessUnit) {
+      users = await User.find(baseQuery).select('email').lean();
+    }
+
+    users.forEach((user) => {
+      if (user?.email) emails.add(user.email);
+    });
+  }
+
+  return emails;
+};
+
+const CARD_ASSIGNED_EMAIL_CREATOR_ROLES = ['mis_manager', 'super_admin', 'business_unit_admin'];
 
 const resolveSubmittedBy = (entry, fallbackUser) =>
   entry?.cardAssignedTo || entry?.createdBy?.name || fallbackUser?.name || 'MIS';
@@ -166,9 +233,13 @@ const sendMisNotificationsForEntry = async (entry, submittedBy, cachedMisManager
 // @access  Private (SPOC, MIS, Super Admin, Business Unit Admin)
 export const createExpenseEntry = async (req, res) => {
   try {
+    const isMisBypassEnabled =
+      req.user.role === 'mis_manager' && parseBooleanFlag(req.body?.misBypassMandatoryFields);
+
     const {
       cardNumber,
       cardAssignedTo,
+      cardAssignedToUserId,
       date,
       month,
       status,
@@ -186,6 +257,60 @@ export const createExpenseEntry = async (req, res) => {
       isShared = false,
       sharedAllocations = [],
     } = req.body;
+
+    const missingFields = [];
+    const conditionalRequiredFields = [
+      ['typeOfService', typeOfService, 'Type of Service'],
+      ['businessUnit', businessUnit, 'Business Unit'],
+      ['costCenter', costCenter, 'Cost Center'],
+      ['approvedBy', approvedBy, 'Approved By'],
+      ['serviceHandler', serviceHandler, 'Service Handler'],
+    ];
+
+    if (!isMisBypassEnabled) {
+      conditionalRequiredFields.forEach(([, value, label]) => {
+        if (isBlank(value)) missingFields.push(label);
+      });
+      if (missingFields.length) {
+        return res.status(400).json({
+          success: false,
+          message: `Missing required field(s): ${missingFields.join(', ')}`,
+        });
+      }
+    }
+
+    const creatorRequiresCardAssignedSelection = CARD_ASSIGNED_EMAIL_CREATOR_ROLES.includes(req.user.role);
+    let selectedCardAssignedUser = null;
+
+    if (cardAssignedToUserId) {
+      if (!mongoose.Types.ObjectId.isValid(cardAssignedToUserId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid Card Assigned To user selection',
+        });
+      }
+
+      selectedCardAssignedUser = await User.findOne({
+        _id: cardAssignedToUserId,
+        isActive: true,
+      })
+        .select('_id name email role businessUnit isActive')
+        .lean();
+
+      if (!selectedCardAssignedUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected Card Assigned To user is not available',
+        });
+      }
+    }
+
+    if (creatorRequiresCardAssignedSelection && !selectedCardAssignedUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please select a valid "Card Assigned To" user from the dropdown',
+      });
+    }
 
     // Restrict SPOC/Business Unit Admin to their own business unit
     if (['spoc', 'business_unit_admin'].includes(req.user.role)) {
@@ -255,34 +380,40 @@ export const createExpenseEntry = async (req, res) => {
       entryStatus = 'Accepted';
     }
 
+    const createPayload = omitBlankFields(
+      {
+        cardNumber,
+        cardAssignedTo: selectedCardAssignedUser?.name || cardAssignedTo,
+        cardAssignedToUser: selectedCardAssignedUser?._id || null,
+        date,
+        month,
+        status,
+        particulars,
+        narration,
+        currency,
+        billStatus,
+        amount: normalizedAmount,
+        xeRate: Math.abs(rate),
+        amountInINR: Math.abs(amountInINR),
+        typeOfService,
+        businessUnit,
+        costCenter,
+        approvedBy,
+        serviceHandler,
+        recurring: recurringLabel,
+        entryStatus,
+        duplicateStatus: ['mis_manager', 'super_admin'].includes(req.user.role) ? duplicateStatus : null,
+        createdBy: req.user._id,
+        approvalToken,
+        nextRenewalDate,
+        isShared: sharedPayload.isShared,
+        sharedAllocations: sharedPayload.sharedAllocations,
+      },
+      ['status', 'billStatus', 'typeOfService', 'businessUnit', 'costCenter', 'approvedBy', 'serviceHandler', 'recurring']
+    );
+
     // Create expense entry
-    const expenseEntry = await ExpenseEntry.create({
-      cardNumber,
-      cardAssignedTo,
-      date,
-      month,
-      status,
-      particulars,
-      narration,
-      currency,
-      billStatus,
-      amount: normalizedAmount,
-      xeRate: Math.abs(rate),
-      amountInINR: Math.abs(amountInINR),
-      typeOfService,
-      businessUnit,
-      costCenter,
-      approvedBy,
-      serviceHandler,
-      recurring: recurringLabel,
-      entryStatus,
-      duplicateStatus: ['mis_manager', 'super_admin'].includes(req.user.role) ? duplicateStatus : null,
-      createdBy: req.user._id,
-      approvalToken,
-      nextRenewalDate,
-      isShared: sharedPayload.isShared,
-      sharedAllocations: sharedPayload.sharedAllocations,
-    });
+    const expenseEntry = await ExpenseEntry.create(createPayload);
 
     const isActiveStatus = (status || '').toString().toLowerCase() === 'active';
     const uploaderName = req.user?.name || 'MIS';
@@ -321,44 +452,41 @@ export const createExpenseEntry = async (req, res) => {
           }
         })
       );
+    }
 
-      // Notify SPOC (card assigned) + service handler
+    if (entryStatus === 'Accepted' && isActiveStatus) {
+      // Notify Card Assigned user(s) + service handler
       const spocNames = parseNameList(cardAssignedTo);
       const handlerNames = parseNameList(serviceHandler);
 
-      const spocEmails = new Set();
-      for (const spocName of spocNames) {
-        const normalized = normalizeNameKey(spocName);
-        if (!normalized) continue;
-        const spocUsers = await User.find({
-          role: 'spoc',
-          businessUnit,
-          name: new RegExp(`^${escapeRegex(spocName)}$`, 'i'),
-        });
-        spocUsers.forEach((spoc) => {
-          const email = spoc.email?.toLowerCase();
-          if (email && !misEmailSet.has(email)) spocEmails.add(spoc.email);
-        });
+      let spocEmails = new Set();
+      const shouldSendCardAssignedEmail = CARD_ASSIGNED_EMAIL_CREATOR_ROLES.includes(req.user.role);
+      if (shouldSendCardAssignedEmail) {
+        if (selectedCardAssignedUser?.email) {
+          spocEmails.add(selectedCardAssignedUser.email);
+        } else {
+          // Backward-compatible fallback for older clients that may not send cardAssignedToUserId.
+          spocEmails = await resolveUserEmailsByNames({
+            names: spocNames,
+            businessUnit,
+            roles: ['spoc', 'business_unit_admin', 'service_handler', 'mis_manager', 'super_admin'],
+          });
+        }
       }
 
-      const handlerEmails = new Set();
-      for (const handlerName of handlerNames) {
-        const normalized = normalizeNameKey(handlerName);
-        if (!normalized) continue;
-        const handlerUsers = await User.find({
-          role: 'service_handler',
-          businessUnit,
-          name: new RegExp(`^${escapeRegex(handlerName)}$`, 'i'),
-        });
-        handlerUsers.forEach((handler) => {
-          const email = handler.email?.toLowerCase();
-          if (email && !misEmailSet.has(email)) handlerEmails.add(handler.email);
-        });
-      }
+      const handlerEmails = await resolveUserEmailsByNames({
+        names: handlerNames,
+        businessUnit,
+        roles: ['service_handler'],
+      });
 
       await Promise.all([
-        ...[...spocEmails].map((email) => sendSpocEntryEmail(email, expenseEntry, uploaderName)),
-        ...[...handlerEmails].map((email) =>
+        ...[...spocEmails]
+          .filter((email) => !misEmailSet.has(String(email).toLowerCase()))
+          .map((email) => sendSpocEntryEmail(email, expenseEntry, uploaderName)),
+        ...[...handlerEmails]
+          .filter((email) => !misEmailSet.has(String(email).toLowerCase()))
+          .map((email) =>
           sendServiceHandlerEntryEmail(email, expenseEntry, uploaderName)
         ),
       ]);
@@ -519,6 +647,7 @@ export const getExpenseEntries = async (req, res) => {
 
     const expenseEntries = await ExpenseEntry.find(query)
       .populate('createdBy', 'name email role')
+      .populate('cardAssignedToUser', 'name email role businessUnit')
       .sort({ date: -1 })
       .lean();
 
@@ -543,7 +672,9 @@ export const getExpenseEntries = async (req, res) => {
 // @access  Private
 export const getExpenseEntry = async (req, res) => {
   try {
-    const expenseEntry = await ExpenseEntry.findById(req.params.id).populate('createdBy', 'name email role');
+    const expenseEntry = await ExpenseEntry.findById(req.params.id)
+      .populate('createdBy', 'name email role')
+      .populate('cardAssignedToUser', 'name email role businessUnit');
 
     if (!expenseEntry) {
       return res.status(404).json({

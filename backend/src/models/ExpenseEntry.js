@@ -11,11 +11,16 @@ const expenseEntrySchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-    }, 
+    },
+    cardAssignedToUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     date: {
       type: Date,
       required: true,
-    },
+    }, 
     month: {
       type: String,
       required: true,

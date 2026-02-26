@@ -9,9 +9,10 @@ import Modal from '../components/common/Modal';
 import { Plus, Trash2 } from 'lucide-react';
 import { createExpense } from '../services/expenseService';
 import { getCards, createCard, deleteCard } from '../services/cardService';
+import { getAssignableUsers } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import { 
-  BUSINESS_UNITS,
+  BUSINESS_UNITS, 
   TYPES_OF_EXPENSE,
   COST_CENTERS,
   APPROVED_BY,
@@ -28,14 +29,24 @@ const AddExpense = () => {
   const [loading, setLoading] = useState(false);
   const [cardsLoading, setCardsLoading] = useState(false);
   const [cards, setCards] = useState([]);
+  const [assignableUsersLoading, setAssignableUsersLoading] = useState(false);
+  const [assignableUsers, setAssignableUsers] = useState([]);
+  const [cardAssignedToInput, setCardAssignedToInput] = useState('');
   const [manageCardsOpen, setManageCardsOpen] = useState(false);
   const [newCardNumber, setNewCardNumber] = useState('');
   const [cardActionLoading, setCardActionLoading] = useState(false);
   const isBusinessUnitLocked = ['business_unit_admin', 'spoc'].includes(user?.role);
   const canManageCards = ['super_admin', 'business_unit_admin'].includes(user?.role);
+  const canBypassMandatoryFields = user?.role === 'mis_manager';
+  const requiresCardAssignedDropdownSelection = ['mis_manager', 'super_admin', 'business_unit_admin'].includes(
+    user?.role
+  );
+  const [misBypassMandatoryFields, setMisBypassMandatoryFields] = useState(false);
+  const enforceExtendedRequiredFields = !canBypassMandatoryFields || !misBypassMandatoryFields;
   const [formData, setFormData] = useState({
     cardNumber: '',
     cardAssignedTo: '',
+    cardAssignedToUserId: '',
     date: '',
     month: '',
     status: 'Active',
@@ -71,6 +82,87 @@ const AddExpense = () => {
 
     fetchCards();
   }, []);
+
+  useEffect(() => {
+    const fetchAssignableUsers = async () => {
+      try {
+        setAssignableUsersLoading(true);
+        const response = await getAssignableUsers();
+        if (response.success) {
+          setAssignableUsers(Array.isArray(response.data) ? response.data : []);
+        }
+      } catch (error) {
+        toast.error('Unable to load users for Card Assigned To');
+      } finally {
+        setAssignableUsersLoading(false);
+      }
+    };
+
+    fetchAssignableUsers();
+  }, []);
+
+  const buildCardAssignedOptionLabel = (candidate) => {
+    if (!candidate) return '';
+    const roleLabel = candidate.role ? candidate.role.replaceAll('_', ' ') : 'user';
+    const buLabel = candidate.businessUnit || 'Global';
+    return `${candidate.name} (${candidate.email}) - ${roleLabel} - ${buLabel}`;
+  };
+
+  const applySelectedCardAssignedUser = (selectedUser) => {
+    if (!selectedUser) return;
+    setCardAssignedToInput(buildCardAssignedOptionLabel(selectedUser));
+    setFormData((prev) => ({
+      ...prev,
+      cardAssignedTo: selectedUser.name,
+      cardAssignedToUserId: selectedUser._id,
+    }));
+  };
+
+  const resolveAssignableUserFromInput = (rawValue) => {
+    const text = rawValue?.trim();
+    if (!text) return null;
+
+    const byLabel = assignableUsers.find(
+      (candidate) => buildCardAssignedOptionLabel(candidate).toLowerCase() === text.toLowerCase()
+    );
+    if (byLabel) return byLabel;
+
+    const exactMatches = assignableUsers.filter(
+      (candidate) =>
+        candidate.name?.trim().toLowerCase() === text.toLowerCase() ||
+        candidate.email?.trim().toLowerCase() === text.toLowerCase()
+    );
+
+    return exactMatches.length === 1 ? exactMatches[0] : null;
+  };
+
+  const handleCardAssignedToChange = (e) => {
+    const nextInput = e.target.value;
+    setCardAssignedToInput(nextInput);
+
+    const matchedUser = resolveAssignableUserFromInput(nextInput);
+    if (matchedUser) {
+      setFormData((prev) => ({
+        ...prev,
+        cardAssignedTo: matchedUser.name,
+        cardAssignedToUserId: matchedUser._id,
+      }));
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      cardAssignedTo: nextInput,
+      cardAssignedToUserId: '',
+    }));
+  };
+
+  const handleCardAssignedToBlur = () => {
+    const matchedUser = resolveAssignableUserFromInput(cardAssignedToInput);
+    if (matchedUser) {
+      applySelectedCardAssignedUser(matchedUser);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -210,10 +302,17 @@ const AddExpense = () => {
         }
       }
 
+      if (requiresCardAssignedDropdownSelection && !formData.cardAssignedToUserId) {
+        toast.error('Please select "Card Assigned To" from the user dropdown.');
+        setLoading(false);
+        return;
+      }
+
       const response = await createExpense({
         ...formData,
         amount: amountValue,
         sharedAllocations,
+        misBypassMandatoryFields,
       });
       if (response.success) {
         toast.success('Expense entry submitted for approval!');
@@ -267,13 +366,45 @@ const AddExpense = () => {
                 <Input
                   label="Card Assigned To"
                   name="cardAssignedTo"
-                  value={formData.cardAssignedTo}
-                  onChange={handleChange}
-                  placeholder="e.g., John Doe"
+                  value={cardAssignedToInput}
+                  onChange={handleCardAssignedToChange}
+                  onBlur={handleCardAssignedToBlur}
+                  placeholder={
+                    assignableUsersLoading
+                      ? 'Loading users...'
+                      : 'Type name/email and choose from dropdown'
+                  }
+                  list="card-assigned-user-list"
+                  hint={
+                    requiresCardAssignedDropdownSelection
+                      ? 'Required: select an existing user from the dropdown so email goes to the correct person.'
+                      : 'Type to search existing users. You can still enter text manually if needed.'
+                  }
                   required
                 />
+                <datalist id="card-assigned-user-list">
+                  {assignableUsers.map((candidate) => (
+                    <option key={candidate._id} value={buildCardAssignedOptionLabel(candidate)} />
+                  ))}
+                </datalist>
               </div>
             </div>
+
+            {canBypassMandatoryFields && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <label className="flex items-start gap-3 text-sm text-amber-900">
+                  <input
+                    type="checkbox"
+                    checked={misBypassMandatoryFields}
+                    onChange={(e) => setMisBypassMandatoryFields(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Allow MIS self-entry with optional business details (Type of Service, Business Unit, Cost Center, Approved By, Service Handler).
+                  </span>
+                </label>
+              </div>
+            )}
 
             {/* Date and Status */}
             <div>
@@ -332,7 +463,7 @@ const AddExpense = () => {
                   value={formData.typeOfService}
                   onChange={handleChange}
                   options={TYPES_OF_EXPENSE}
-                  required
+                  required={enforceExtendedRequiredFields}
                 />
                 <Input
                   label="Bill Status"
@@ -434,7 +565,7 @@ const AddExpense = () => {
                   options={BUSINESS_UNITS}
                   disabled={isBusinessUnitLocked}
                   placeholder="Select Business Unit"
-                  required
+                  required={enforceExtendedRequiredFields}
                 />
                 <Select
                   label="Cost Center"
@@ -442,7 +573,7 @@ const AddExpense = () => {
                   value={formData.costCenter}
                   onChange={handleChange}
                   options={COST_CENTERS}
-                  required
+                  required={enforceExtendedRequiredFields}
                 />
                 <Select
                   label="Approved By"
@@ -450,7 +581,7 @@ const AddExpense = () => {
                   value={formData.approvedBy}
                   onChange={handleChange}
                   options={APPROVED_BY}
-                  required
+                  required={enforceExtendedRequiredFields}
                 />
                 <Input
                   label="Service Handler"
@@ -458,7 +589,7 @@ const AddExpense = () => {
                   value={formData.serviceHandler}
                   onChange={handleChange}
                   placeholder="e.g., Raghav"
-                  required
+                  required={enforceExtendedRequiredFields}
                 />
               </div>
             </div>

@@ -8,6 +8,7 @@ import {
   getMe,
   updateMe,
   getUsers,
+  getAssignableUsers,
   updateUser, 
   deleteUser,
 } from '../controllers/authController.js';
@@ -25,6 +26,12 @@ router.post('/login', login);
 router.get('/me', protect, getMe);
 router.put('/me', protect, updateMe);
 router.post('/register', protect, authorize('super_admin', 'business_unit_admin'), register);
+router.get(
+  '/assignable-users',
+  protect,
+  authorize('super_admin', 'mis_manager', 'business_unit_admin', 'spoc'),
+  getAssignableUsers
+);
 router.get('/users', protect, authorize('super_admin', 'business_unit_admin'), getUsers);
 router.put('/users/:id', protect, authorize('super_admin', 'business_unit_admin'), updateUser);
 router.delete('/users/:id', protect, authorize('super_admin'), deleteUser);

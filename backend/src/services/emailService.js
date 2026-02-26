@@ -430,7 +430,7 @@ export const sendServiceHandlerEntryEmail = async (handlerEmail, entryDetails, u
   }
 };
 
-// Send notification to SPOC/Card Assigned user when entry is added
+// Send notification to Card Assigned user when entry is added
 export const sendSpocEntryEmail = async (spocEmail, entryDetails, uploaderName) => {
   const transporter = createTransporter();
 
@@ -457,8 +457,8 @@ export const sendSpocEntryEmail = async (spocEmail, entryDetails, uploaderName) 
           <h1>New Expense Entry Logged</h1>
         </div>
         <div class="content">
-          <p>Dear SPOC,</p>
-          <p>A new expense entry has been added for your card assignment.</p>
+          <p>Dear Team Member,</p>
+          <p>A new expense entry has been added where you are listed in "Card Assigned To".</p>
 
           <div class="details">
             <h3>Entry Details:</h3>
@@ -505,7 +505,7 @@ export const sendSpocEntryEmail = async (spocEmail, entryDetails, uploaderName) 
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: spocEmail,
-    subject: `Expense Entry Logged - ${entryDetails.particulars}`,
+    subject: `Expense Entry Logged (Card Assigned) - ${entryDetails.particulars}`,
     html: htmlContent,
   };
 

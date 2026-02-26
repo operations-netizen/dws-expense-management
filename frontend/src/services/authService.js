@@ -45,6 +45,11 @@ export const getUsers = async () => {
   return response.data;
 };
 
+export const getAssignableUsers = async () => {
+  const response = await api.get('/auth/assignable-users');
+  return response.data;
+};
+
 export const updateUser = async (id, userData) => {
   const response = await api.put(`/auth/users/${id}`, userData);
   return response.data;

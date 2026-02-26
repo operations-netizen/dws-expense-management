@@ -272,6 +272,36 @@ export const getUsers = async (req, res) => {
   }
 };
 
+// @desc    Get active users for assignee dropdowns
+// @route   GET /api/auth/assignable-users
+// @access  Private (Super Admin, MIS, Business Unit Admin, SPOC)
+export const getAssignableUsers = async (req, res) => {
+  try {
+    const query = { isActive: true };
+
+    // BU-scoped creators should only see their BU users + global users (null BU)
+    if (['business_unit_admin', 'spoc'].includes(req.user.role)) {
+      query.$or = [{ businessUnit: req.user.businessUnit }, { businessUnit: null }];
+    }
+
+    const users = await User.find(query)
+      .select('name email role businessUnit isActive')
+      .sort({ name: 1, email: 1 })
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // @desc    Update user
 // @route   PUT /api/auth/users/:id
 // @access  Private (Super Admin, Business Unit Admin)
@@ -529,6 +559,7 @@ export default {
   getMe,
   updateMe,
   getUsers,
+  getAssignableUsers,
   updateUser,
   deleteUser,
 };
