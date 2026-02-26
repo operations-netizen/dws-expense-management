@@ -5,7 +5,7 @@ import { protect, authorize } from '../middleware/auth.js';
 const router = express.Router();
 
 router.get('/', protect, getCards);
-router.post('/', protect, authorize('super_admin', 'business_unit_admin'), createCard);
-router.delete('/:id', protect, authorize('super_admin', 'business_unit_admin'), deleteCard);
+router.post('/', protect, authorize('super_admin', 'mis_manager', 'business_unit_admin'), createCard);
+router.delete('/:id', protect, authorize('super_admin', 'mis_manager', 'business_unit_admin'), deleteCard);
 
 export default router;

@@ -36,7 +36,7 @@ const AddExpense = () => {
   const [newCardNumber, setNewCardNumber] = useState('');
   const [cardActionLoading, setCardActionLoading] = useState(false);
   const isBusinessUnitLocked = ['business_unit_admin', 'spoc'].includes(user?.role);
-  const canManageCards = ['super_admin', 'business_unit_admin'].includes(user?.role);
+  const canManageCards = ['super_admin', 'mis_manager', 'business_unit_admin'].includes(user?.role);
   const canBypassMandatoryFields = user?.role === 'mis_manager';
   const requiresCardAssignedDropdownSelection = ['mis_manager', 'super_admin', 'business_unit_admin'].includes(
     user?.role
