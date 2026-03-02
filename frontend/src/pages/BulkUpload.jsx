@@ -3,6 +3,7 @@ import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle, XCircle } 
 import Layout from '../components/layout/Layout';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import PageHeader from '../components/common/PageHeader';
 import { bulkUploadExpenses, downloadTemplate } from '../services/expenseService';
 import { downloadFile } from '../utils/formatters';
 import toast from 'react-hot-toast';
@@ -35,7 +36,7 @@ const BulkUpload = () => {
       const blob = await downloadTemplate();
       downloadFile(blob, 'expense-template.xlsx');
       toast.success('Template downloaded successfully');
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to download template');
     }
   };
@@ -56,8 +57,8 @@ const BulkUpload = () => {
         // Reset file input
         document.getElementById('file-input').value = '';
       }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Upload failed');
+    } catch (_error) {
+      toast.error(_error.response?.data?.message || 'Upload failed');
     } finally {
       setUploading(false);
     }
@@ -66,13 +67,11 @@ const BulkUpload = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Bulk Upload Expenses</h1>
-          <p className="text-gray-600">
-            Upload multiple expense entries at once using an Excel or CSV file
-          </p>
-        </div>
+        <PageHeader
+          eyebrow="Import Center"
+          title="Bulk Upload Expenses"
+          description="Upload multiple expense entries at once using the approved Excel or CSV template."
+        />
 
         {/* Instructions */}
         <Card title="Instructions">

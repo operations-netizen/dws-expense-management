@@ -6,6 +6,8 @@ import {
   updateExpenseEntry,
   deleteExpenseEntry,
   bulkDeleteExpenseEntries,
+  clubExpenseEntries,
+  unclubExpenseEntries,
   resendMISNotification,
   bulkResendMISNotifications,
   approveExpenseEntry, 
@@ -47,6 +49,8 @@ router.post(
 
 router.post('/bulk-delete', authorize('mis_manager', 'super_admin'), bulkDeleteExpenseEntries);
 router.post('/bulk-resend-mis', authorize('mis_manager', 'super_admin'), bulkResendMISNotifications);
+router.post('/club', authorize('mis_manager', 'super_admin'), clubExpenseEntries);
+router.post('/club/:clubGroupId/unclub', authorize('mis_manager', 'super_admin'), unclubExpenseEntries);
 
 router
   .route('/:id')

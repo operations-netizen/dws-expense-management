@@ -6,6 +6,7 @@ import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import Loading from '../components/common/Loading';
 import Modal from '../components/common/Modal';
+import PageHeader from '../components/common/PageHeader';
 import RenewalDecision from '../components/service-handler/RenewalDecision';
 import { getMyServices, respondToRenewal, requestServiceDisable } from '../services/serviceHandlerService';
 import { getRenewalLogs } from '../services/renewalLogService';
@@ -35,7 +36,7 @@ const ServiceHandler = () => {
       if (response.success) {
         setServices(response.data);
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to load services');
     } finally {
       setLoading(false);
@@ -73,7 +74,7 @@ const ServiceHandler = () => {
       );
       handleCloseModal();
       fetchServices();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to submit response');
     }
   };
@@ -94,7 +95,7 @@ const ServiceHandler = () => {
       toast.success('Cancellation request sent to MIS');
       handleCloseModal();
       fetchServices();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to request cancellation');
     }
   };
@@ -108,7 +109,7 @@ const ServiceHandler = () => {
       if (response.success) {
         setLogs(response.data);
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to load logs');
       setLogs([]);
     } finally {
@@ -129,11 +130,11 @@ const ServiceHandler = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">My Services</h1>
-          <p className="text-gray-600">Manage your assigned services and subscriptions</p>
-        </div>
+        <PageHeader
+          eyebrow="Service Desk"
+          title="My Services"
+          description="Manage assigned subscriptions, respond to renewal prompts, and request service disable actions."
+        />
 
         {/* Services List */}
         {loading ? (
@@ -385,7 +386,7 @@ const ServiceHandler = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {logs.map((log, index) => (
+                {logs.map((log) => (
                   <div
                     key={log._id}
                     className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"

@@ -154,6 +154,23 @@ const expenseEntrySchema = new mongoose.Schema(
         },
       },
     ],
+    clubGroupId: {
+      type: String,
+      default: null,
+    },
+    isClubRepresentative: {
+      type: Boolean,
+      default: false,
+    },
+    clubbedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    clubbedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -172,6 +189,7 @@ expenseEntrySchema.index({ businessUnit: 1, date: -1 });
 expenseEntrySchema.index({ serviceHandler: 1 });
 expenseEntrySchema.index({ entryStatus: 1 });
 expenseEntrySchema.index({ cardNumber: 1 });
+expenseEntrySchema.index({ clubGroupId: 1, isClubRepresentative: 1 });
 
 const ExpenseEntry = mongoose.model('ExpenseEntry', expenseEntrySchema);
 

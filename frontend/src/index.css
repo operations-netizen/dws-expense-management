@@ -1,65 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import "tailwindcss";
 @source "./src/**/*.{js,jsx,ts,tsx}";
 
 @layer base {
   :root {
-    --brand-primary: #5b21ff;
-    --brand-secondary: #8b5cf6;
-    --brand-accent: #0ea5e9;
-    --brand-surface: #f5f6fb;
-    --brand-muted: #a0aec0;
+    --surface: #f3f6fb;
+    --surface-panel: #ffffff;
+    --surface-muted: #e8edf5;
+    --text-primary: #0b1220;
+    --text-secondary: #5b6a82;
+    --sidebar-bg: #111d31;
+    --sidebar-bg-soft: #152540;
+    --brand: #2f64df;
+    --brand-strong: #1f4eb8;
+    --brand-accent: #0ea5a8;
+    --ring: #8bb5ff;
   }
 
   * {
-    border-color: rgba(226, 232, 240, 0.7);
+    border-color: rgba(15, 23, 42, 0.12);
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
   }
 
   body {
-    color: #0f172a;
-    background: linear-gradient(135deg, rgba(246, 247, 255, 0.95), rgba(232, 244, 255, 0.95));
-    min-height: 100vh;
-    font-family: 'Sora', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    margin: 0;
+    color: var(--text-primary);
+    background:
+      radial-gradient(circle at 15% 20%, rgba(47, 100, 223, 0.12), transparent 40%),
+      radial-gradient(circle at 88% 10%, rgba(14, 165, 168, 0.1), transparent 32%),
+      linear-gradient(180deg, #f7f9fc 0%, #eef3fb 100%);
+    font-family: 'Manrope', 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    position: relative;
   }
 
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background:
-      radial-gradient(circle at 15% 20%, rgba(91, 33, 255, 0.12), transparent 45%),
-      radial-gradient(circle at 85% 10%, rgba(14, 165, 233, 0.15), transparent 40%),
-      radial-gradient(circle at 70% 80%, rgba(126, 58, 242, 0.12), transparent 45%);
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Space Grotesk', 'Manrope', sans-serif;
+    letter-spacing: -0.02em;
   }
 
   code {
-    font-family: 'JetBrains Mono', 'Source Code Pro', monospace;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
   }
 }
 
 @layer components {
   .glass-panel {
-    background: rgba(255, 255, 255, 0.82);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    border-radius: 24px;
-    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
-    backdrop-filter: blur(24px);
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 20px;
+    box-shadow: 0 30px 60px rgba(16, 28, 52, 0.14);
+    backdrop-filter: blur(22px);
   }
 
   .brand-gradient {
-    background-image: linear-gradient(180deg, #111111, #0d0d0d);
+    background-image: linear-gradient(145deg, #274fbc 0%, #1a2f62 65%, #111d31 100%);
+  }
+
+  .page-shell {
+    background: var(--surface);
+  }
+
+  .surface-card {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 20px;
+    background: var(--surface-panel);
+    box-shadow: 0 18px 40px rgba(18, 34, 66, 0.08);
   }
 
   .subtle-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
 
   .subtle-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.6);
+    background: rgba(110, 130, 168, 0.45);
     border-radius: 999px;
   }
 
@@ -71,7 +96,7 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;

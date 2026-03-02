@@ -52,20 +52,22 @@ function AppContent() {
         toastOptions={{
           duration: 4000,
           style: {
-            background: '#363636',
-            color: '#fff',
+            background: '#ffffff',
+            color: '#0f172a',
+            border: '1px solid #dbe3f1',
+            boxShadow: '0 16px 35px rgba(15, 23, 42, 0.14)',
           },
           success: {
             duration: 3000,
             iconTheme: {
-              primary: '#10b981',
+              primary: '#16a34a',
               secondary: '#fff',
             },
           },
           error: {
             duration: 4000,
             iconTheme: {
-              primary: '#ef4444',
+              primary: '#dc2626',
               secondary: '#fff',
             },
           },

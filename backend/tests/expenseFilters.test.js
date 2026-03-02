@@ -50,13 +50,15 @@ test('filters duplicate entries when requested', async () => {
     },
   ];
 
-  ExpenseEntry.find = () => ({
-    populate: () => ({
+  ExpenseEntry.find = () => {
+    const chain = {
+      populate: () => chain,
       sort: () => ({
         lean: async () => entries,
       }),
-    }),
-  });
+    };
+    return chain;
+  };
 
   const req = {
     query: { duplicateStatus: 'Duplicate' },

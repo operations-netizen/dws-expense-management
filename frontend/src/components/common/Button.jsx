@@ -10,25 +10,25 @@ const Button = ({
   ...props
 }) => { 
   const baseClasses =
-    'inline-flex items-center justify-center gap-2 font-semibold tracking-wide rounded-xl transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 shadow-sm active:scale-[0.99]';
+    'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 active:translate-y-px';
 
   const variants = {
     primary:
-      'bg-black text-white shadow-lg shadow-black/30 hover:bg-neutral-900 focus-visible:ring-slate-400 disabled:opacity-60 disabled:cursor-not-allowed',
+      'bg-[#2f64df] text-white shadow-[0_10px_24px_rgba(47,100,223,0.35)] hover:bg-[#2858ca] focus-visible:ring-[#7ba8ff]',
     secondary:
-      'bg-white/90 text-slate-800 border border-slate-200 hover:bg-white shadow hover:shadow-md focus-visible:ring-slate-300 disabled:opacity-60 disabled:cursor-not-allowed',
+      'border border-slate-200 bg-white text-slate-800 shadow-sm hover:border-slate-300 hover:bg-slate-50 focus-visible:ring-slate-300',
     outline:
-      'border border-slate-400 text-slate-900 bg-white hover:bg-slate-50 focus-visible:ring-slate-300 disabled:opacity-60 disabled:cursor-not-allowed',
+      'border border-slate-300 bg-transparent text-slate-700 hover:bg-slate-100/80 focus-visible:ring-slate-300',
     danger:
-      'bg-rose-500 hover:bg-rose-600 text-white focus-visible:ring-rose-300 shadow-lg shadow-rose-200 disabled:opacity-60 disabled:cursor-not-allowed',
+      'bg-rose-600 text-white shadow-[0_10px_20px_rgba(225,29,72,0.25)] hover:bg-rose-700 focus-visible:ring-rose-300',
     ghost:
-      'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60 focus-visible:ring-slate-200 disabled:opacity-60 disabled:cursor-not-allowed',
+      'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-slate-200',
   };
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-5 py-2.5 text-sm',
-    lg: 'px-6 py-3 text-base',
+    sm: 'px-3 py-2 text-xs',
+    md: 'px-4 py-2.5 text-sm',
+    lg: 'px-5 py-3 text-sm',
   };
 
   return (

@@ -34,7 +34,8 @@ import Layout from '../components/layout/Layout';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Loading from '../components/common/Loading';
-import AdvancedFilter, { ADVANCED_FILTER_DEFAULTS } from '../components/common/AdvancedFilter';
+import AdvancedFilter from '../components/common/AdvancedFilter';
+import { ADVANCED_FILTER_DEFAULTS } from '../components/common/filterDefaults';
 import { getExpenses, exportExpenses } from '../services/expenseService';
 import { downloadFile, formatCurrency, formatDate, getRoleName } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
@@ -131,8 +132,8 @@ const Dashboard = () => {
       if (expenseResponse.success) {
         setExpenses(expenseResponse.data);
       }
-    } catch (error) {
-      console.error('Failed to load dashboard data', error);
+    } catch (_error) {
+      console.error('Failed to load dashboard data', _error);
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -158,8 +159,8 @@ const Dashboard = () => {
       if (response.success) {
         setExpenses(response.data);
       }
-    } catch (error) {
-      console.error('Failed to load expenses', error);
+    } catch (_error) {
+      console.error('Failed to load expenses', _error);
       toast.error('Failed to load expenses');
     } finally {
       setLoading(false);
@@ -208,8 +209,8 @@ const Dashboard = () => {
       const blob = await exportExpenses(exportFilters);
       downloadFile(blob, `expenses-${Date.now()}.xlsx`);
       toast.success('Expenses exported successfully');
-    } catch (error) {
-      console.error('Failed to export expenses', error);
+    } catch (_error) {
+      console.error('Failed to export expenses', _error);
       toast.error('Failed to export expenses');
     }
   };
@@ -977,7 +978,7 @@ const Dashboard = () => {
                   <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-600">Status</th>
                   <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-600">Particulars</th>
                   <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-600">Cost Center</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-600">Amount ₹</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left font-semibold text-slate-600">Amount (INR)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">

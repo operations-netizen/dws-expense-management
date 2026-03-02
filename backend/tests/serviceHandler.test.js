@@ -22,6 +22,8 @@ test('service handler renewal continue flow creates log entry', async () => {
   const sampleEntry = {
     _id: 'entry-1',
     serviceHandler: 'Handler Wytlabs',
+    businessUnit: 'Wytlabs',
+    particulars: 'Chat GPT Demo',
     nextRenewalDate: new Date('2025-02-05'),
   };
 
@@ -30,12 +32,12 @@ test('service handler renewal continue flow creates log entry', async () => {
   RenewalLog.create = async (payload) => {
     createdLog = payload;
   };
-  User.findOne = async () => null;
+  User.find = async () => [];
 
   const req = {
     params: { entryId: 'entry-1' },
     body: { continueService: true, reason: 'Still required' },
-    user: { name: 'Handler Wytlabs' },
+    user: { name: 'Handler Wytlabs', businessUnit: 'Wytlabs' },
   };
   const res = createMockRes();
 

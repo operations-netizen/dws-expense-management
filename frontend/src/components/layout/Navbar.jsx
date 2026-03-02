@@ -1,18 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Menu, ShieldCheck, User, X } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Menu, ShieldCheck, User, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { logout } from '../../services/authService';
 import { getRoleName } from '../../utils/formatters';
 import { getNavigationForRole } from '../../utils/navigation';
-import dwsLogo from '../../assets/dws.png';
  
-const Navbar = () => {
+const Navbar = ({ sidebarCollapsed = false }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [notificationCount] = useState(0);
+  const profileMenuRef = useRef(null);
   const navigationItems = getNavigationForRole(user?.role);
 
   const handleLogout = () => {
@@ -20,33 +20,57 @@ const Navbar = () => {
     navigate('/login');
   };
 
-  const RoleBadge = () => (
-    <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-700">
+  useEffect(() => {
+    if (!showProfileMenu) return undefined;
+
+    const handleClickOutside = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    const handleEsc = (event) => {
+      if (event.key === 'Escape') {
+        setShowProfileMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEsc);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [showProfileMenu]);
+
+  const roleBadge = (
+    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">
       <ShieldCheck size={14} />
       {getRoleName(user?.role)}
     </span>
   );
 
   return (
-    <nav className="fixed top-0 inset-x-0 z-40 bg-white border-b border-slate-200 shadow-sm">
-      <div className="w-full flex h-16 items-center justify-between px-4 sm:px-6 lg:px-10">
-        <div className="flex items-center gap-4 min-w-0">
-          <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="inline-flex h-12 w-16 items-center justify-center rounded-xl bg-black p-1 shadow">
-              <img src={dwsLogo} alt="DWS Logo" className="h-full w-full object-contain" />
-            </div>
-            <div className="leading-tight">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-slate-500">DWS Expense Manager</p>
-              <p className="text-sm font-semibold text-slate-900">Expense Management Ecosystem</p>
-            </div>
-          </Link>
+    <nav
+      className={`fixed left-0 right-0 top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-lg ${
+        sidebarCollapsed ? 'md:left-20' : 'md:left-72'
+      }`}
+    >
+      <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 md:hidden"
+          >
+            {showMobileMenu ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
 
-        <div className="hidden md:flex items-center gap-4 ml-auto">
-          <RoleBadge />
+        <div className="ml-auto hidden items-center gap-4 md:flex">
           <Link
             to="/notifications"
-            className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:text-primary-600 transition-colors"
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition-colors hover:text-[#2f64df]"
           >
             <Bell size={18} />
             {notificationCount > 0 && (
@@ -56,60 +80,60 @@ const Navbar = () => {
             )}
           </Link>
 
-          <div className="relative">
+          <div className="relative" ref={profileMenuRef}>
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="flex items-center rounded-full border border-slate-200 bg-white p-1.5 shadow-sm hover:shadow"
+              className="flex items-center gap-3 rounded-full px-1.5 py-1 transition-colors hover:bg-slate-100"
               aria-label="Open profile menu"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-black text-white font-semibold uppercase">
-                {user?.name?.split(' ')?.map((n) => n[0]).slice(0, 2).join('') || 'SA'}
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-sm font-bold uppercase text-white">
+                {user?.name?.split(' ')?.[0]?.[0] || 'S'}
               </div>
+              <span className="text-[1.07rem] font-semibold text-slate-900">{user?.name?.split(' ')[0] || 'Profile'}</span>
+              <ChevronDown size={16} className="text-slate-500" />
             </button>
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-100 bg-white shadow-lg">
+              <div className="absolute right-0 mt-3 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)]">
+                <div className="px-5 py-4">
+                  <p className="text-[1.12rem] font-semibold text-slate-900">{user?.name || 'Workspace User'}</p>
+                  <p className="mt-0.5 text-[1rem] text-slate-600">{user?.email || ''}</p>
+                  <p className="mt-0.5 text-[1rem] font-semibold text-[#3b82f6]">{(getRoleName(user?.role) || '').toLowerCase()}</p>
+                </div>
                 <Link
                   to="/profile"
-                  className="flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50"
+                  className="flex items-center gap-3 border-t border-slate-200 px-5 py-4 text-[1rem] text-slate-800 hover:bg-slate-50"
                   onClick={() => setShowProfileMenu(false)}
                 >
-                  <User size={16} /> Profile
+                  <User size={18} /> Profile Settings
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="flex w-full items-center gap-2 px-4 py-3 text-sm text-rose-600 hover:bg-rose-50"
+                  className="flex w-full items-center gap-3 border-t border-slate-200 px-5 py-4 text-[1rem] text-rose-500 hover:bg-rose-50"
                 >
-                  <LogOut size={16} /> Logout
+                  <LogOut size={18} /> Logout
                 </button>
               </div>
             )}
           </div>
         </div>
-
-        <div className="md:hidden">
-          <button
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 shadow-sm"
-          >
-            {showMobileMenu ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
       </div>
 
       {showMobileMenu && (
         <div className="border-t border-slate-200 bg-white px-4 py-4 shadow-md md:hidden">
-          <div className="space-y-3">
-            <RoleBadge />
-            {navigationItems.map(({ path, icon: Icon, label }) => (
+          <div className="space-y-2">
+            {roleBadge}
+            {navigationItems.map((item) => {
+              const Icon = item.icon;
+              return (
               <Link
-                key={path}
-                to={path}
-                className="flex items-center gap-3 rounded-lg border border-slate-100 px-4 py-3 text-slate-700"
+                key={item.path}
+                to={item.path}
+                className="flex items-center gap-3 rounded-lg border border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700"
                 onClick={() => setShowMobileMenu(false)}
               >
-                <Icon size={18} /> {label}
+                <Icon size={18} /> {item.label}
               </Link>
-            ))}
+            )})}
             <Link
               to="/notifications"
               className="flex items-center gap-3 rounded-lg border border-slate-100 px-4 py-3 text-slate-700"

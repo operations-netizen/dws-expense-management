@@ -42,6 +42,16 @@ export const bulkDeleteExpenses = async (ids = []) => {
   return response.data;
 };
 
+export const clubExpenseEntries = async (ids = []) => {
+  const response = await api.post('/expenses/club', { ids });
+  return response.data;
+};
+
+export const unclubExpenseEntries = async (clubGroupId) => {
+  const response = await api.post(`/expenses/club/${clubGroupId}/unclub`);
+  return response.data;
+};
+
 export const resendMisNotification = async (id) => {
   const response = await api.post(`/expenses/${id}/resend-mis`);
   return response.data;

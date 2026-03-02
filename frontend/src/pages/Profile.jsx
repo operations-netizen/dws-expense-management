@@ -5,6 +5,7 @@ import Card from '../components/common/Card';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
+import PageHeader from '../components/common/PageHeader';
 import { useAuth } from '../context/AuthContext';
 import { getRoleName, formatDateTime } from '../utils/formatters';
 import toast from 'react-hot-toast';
@@ -75,8 +76,8 @@ const Profile = () => {
       } else {
         toast.error(response.message || 'Failed to update profile');
       }
-    } catch (error) {
-      toast.error(error?.response?.data?.message || 'Failed to update profile');
+    } catch (_error) {
+      toast.error(_error?.response?.data?.message || 'Failed to update profile');
     }
     setSaving(false);
   };
@@ -84,11 +85,11 @@ const Profile = () => {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">My Profile</h1>
-          <p className="text-gray-600">Manage your account information and settings</p>
-        </div>
+        <PageHeader
+          eyebrow="Account"
+          title="My Profile"
+          description="Manage your account information, password, and role-linked permissions."
+        />
 
         {/* Profile Overview */}
         <Card>

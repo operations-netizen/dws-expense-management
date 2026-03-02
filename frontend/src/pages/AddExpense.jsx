@@ -6,6 +6,7 @@ import Input from '../components/common/Input';
 import Select from '../components/common/Select';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
+import PageHeader from '../components/common/PageHeader';
 import { Plus, Trash2 } from 'lucide-react';
 import { createExpense } from '../services/expenseService';
 import { getCards, createCard, deleteCard } from '../services/cardService';
@@ -73,7 +74,7 @@ const AddExpense = () => {
         if (response.success) {
           setCards(response.data || []);
         }
-      } catch (error) {
+      } catch (_error) {
         toast.error('Unable to load card numbers');
       } finally {
         setCardsLoading(false);
@@ -91,7 +92,7 @@ const AddExpense = () => {
         if (response.success) {
           setAssignableUsers(Array.isArray(response.data) ? response.data : []);
         }
-      } catch (error) {
+      } catch (_error) {
         toast.error('Unable to load users for Card Assigned To');
       } finally {
         setAssignableUsersLoading(false);
@@ -190,7 +191,7 @@ const AddExpense = () => {
       if (response.success) {
         setCards(response.data || []);
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Unable to refresh card list');
     } finally {
       setCardsLoading(false);
@@ -211,8 +212,8 @@ const AddExpense = () => {
         setNewCardNumber('');
         await refreshCards();
       }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to add card');
+    } catch (_error) {
+      toast.error(_error.response?.data?.message || 'Failed to add card');
     } finally {
       setCardActionLoading(false);
     }
@@ -225,8 +226,8 @@ const AddExpense = () => {
       await deleteCard(cardId);
       toast.success('Card deleted');
       await refreshCards();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to delete card');
+    } catch (_error) {
+      toast.error(_error.response?.data?.message || 'Failed to delete card');
     } finally {
       setCardActionLoading(false);
     }
@@ -318,8 +319,8 @@ const AddExpense = () => {
         toast.success('Expense entry submitted for approval!');
         navigate('/expenses');
       }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create expense entry');
+    } catch (_error) {
+      toast.error(_error.response?.data?.message || 'Failed to create expense entry');
     } finally {
       setLoading(false);
     }
@@ -327,7 +328,12 @@ const AddExpense = () => {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto">
+      <div className="mx-auto max-w-4xl space-y-6">
+        <PageHeader
+          eyebrow="Expense Entry"
+          title="Add New Expense Entry"
+          description="Create a new expense record with card, service, amount, ownership, and shared allocation details."
+        />
         <Card title="Add New Expense Entry">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Card Information */}

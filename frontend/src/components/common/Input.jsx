@@ -14,12 +14,12 @@ const Input = ({
   ...props
 }) => { 
   const baseField =
-    'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 transition duration-150 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:bg-slate-100 disabled:cursor-not-allowed';
+    'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 transition focus:border-[#9ab9ff] focus:outline-none focus:ring-2 focus:ring-[#d6e4ff] disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed';
 
   return (
     <div className={`space-y-1 ${className}`}>
       {label && (
-        <label htmlFor={name} className="text-sm font-semibold text-gray-700 tracking-wide">
+        <label htmlFor={name} className="text-sm font-semibold text-slate-700">
           {label}
           {required && <span className="text-rose-500 ml-1">*</span>}
         </label>

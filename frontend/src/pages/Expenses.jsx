@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Search, Filter, Download, Upload, CheckCircle2, ListChecks, Send } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Search, Download, Upload, CheckCircle2, ListChecks, Send } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -7,13 +7,16 @@ import Input from '../components/common/Input';
 import Select from '../components/common/Select';
 import ExpenseTable from '../components/dashboard/ExpenseTable';
 import Modal from '../components/common/Modal';
-import AdvancedFilter, { ADVANCED_FILTER_DEFAULTS } from '../components/common/AdvancedFilter';
+import AdvancedFilter from '../components/common/AdvancedFilter';
+import { ADVANCED_FILTER_DEFAULTS } from '../components/common/filterDefaults';
 import { 
   getExpenses,
   exportExpenses,
   deleteExpense,
   updateExpense,
   bulkDeleteExpenses,
+  clubExpenseEntries,
+  unclubExpenseEntries,
   resendMisNotification,
   bulkResendMisNotifications,
 } from '../services/expenseService';
@@ -41,6 +44,7 @@ const Expenses = () => {
   const canFilterCardAssigned = ['mis_manager', 'super_admin', 'business_unit_admin', 'spoc'].includes(user?.role);
   const canEditSharedAllocations = ['mis_manager', 'super_admin'].includes(user?.role);
   const canBulkDelete = ['mis_manager', 'super_admin'].includes(user?.role);
+  const canClubExpenses = ['mis_manager', 'super_admin'].includes(user?.role);
   const canResendMis = ['mis_manager', 'super_admin'].includes(user?.role);
   const createDefaultFilters = () => ({ ...ADVANCED_FILTER_DEFAULTS });
   const [expenses, setExpenses] = useState([]);
@@ -83,15 +87,8 @@ const Expenses = () => {
     [expenses]
   );
 
-  useEffect(() => {
-    fetchExpenses();
-  }, []);
-
-  useEffect(() => {
-    setShowDuplicateStatus(canSeeDuplicateControls);
-  }, [user]);
-
-  const fetchExpenses = async (customFilters = filters, customSearchTerm = searchTerm) => {
+  const fetchExpenses = useCallback(async (customFilters = filters, customSearchTerm = searchTerm, options = {}) => {
+    const { resetPage = false } = options;
     try {
       setLoading(true);
       const payload = {
@@ -106,32 +103,36 @@ const Expenses = () => {
         setExpenses(response.data);
         const availableIds = new Set(response.data.map((entry) => entry._id));
         setSelectedIds((prev) => prev.filter((id) => availableIds.has(id)));
-        setCurrentPage(1);
+        setCurrentPage((prev) => {
+          if (resetPage) return 1;
+          const totalPages = Math.max(1, Math.ceil(response.data.length / itemsPerPage));
+          return Math.min(prev, totalPages);
+        });
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to load expenses');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, searchTerm, itemsPerPage]);
+
+  useEffect(() => {
+    fetchExpenses();
+  }, [fetchExpenses]);
+
+  useEffect(() => {
+    setShowDuplicateStatus(canSeeDuplicateControls);
+  }, [canSeeDuplicateControls]);
 
   const handleSearch = () => {
-    fetchExpenses(filters, searchTerm);
-  };
-
-  const handleFilterChange = (e) => {
-    setFilters({
-      ...filters,
-      [e.target.name]: e.target.value,
-    });
+    fetchExpenses(filters, searchTerm, { resetPage: true });
   };
 
   const handleClearFilters = () => {
     const clearedFilters = createDefaultFilters();
     setFilters(clearedFilters);
     setSearchTerm('');
-    setCurrentPage(1);
-    fetchExpenses(clearedFilters, '');
+    fetchExpenses(clearedFilters, '', { resetPage: true });
   };
 
   const handleExport = async () => {
@@ -162,7 +163,7 @@ const Expenses = () => {
       });
       downloadFile(blob, `expenses-${Date.now()}.xlsx`);
       toast.success('Expenses exported successfully');
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to export expenses');
     }
   };
@@ -190,7 +191,7 @@ const Expenses = () => {
         await deleteExpense(id);
         toast.success('Expense deleted successfully');
         fetchExpenses();
-      } catch (error) {
+      } catch (_error) {
         toast.error('Failed to delete expense');
       }
     }
@@ -210,7 +211,7 @@ const Expenses = () => {
       } else {
         toast.success(`MIS resend${label} completed`);
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to resend MIS email');
     }
   };
@@ -315,7 +316,7 @@ const Expenses = () => {
       toast.success('Expense updated successfully');
       setShowEditModal(false);
       fetchExpenses();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to update expense');
     }
   };
@@ -331,8 +332,41 @@ const Expenses = () => {
       setSelectedIds([]);
       setBulkDeleteEnabled(false);
       fetchExpenses();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to delete selected entries');
+    }
+  };
+
+  const handleClubSelected = async () => {
+    if (selectedIds.length < 2) return;
+    const confirmed = window.confirm(`Club ${selectedIds.length} selected entries into one group?`);
+    if (!confirmed) return;
+
+    try {
+      const response = await clubExpenseEntries(selectedIds);
+      const count = response?.data?.clubbedEntryCount || selectedIds.length;
+      toast.success(`${count} entries clubbed successfully`);
+      setSelectedIds([]);
+      fetchExpenses();
+    } catch (error) {
+      const message = error?.response?.data?.message || 'Failed to club selected entries';
+      toast.error(message);
+    }
+  };
+
+  const handleUnclubGroup = async (clubGroupId) => {
+    if (!clubGroupId) return;
+    const confirmed = window.confirm('Unclub this grouped entry and show individual entries again?');
+    if (!confirmed) return;
+
+    try {
+      const response = await unclubExpenseEntries(clubGroupId);
+      const count = response?.data?.unclubbedCount || 0;
+      toast.success(`Group unclubbed${count ? ` (${count} entries)` : ''}`);
+      fetchExpenses();
+    } catch (error) {
+      const message = error?.response?.data?.message || 'Failed to unclub group';
+      toast.error(message);
     }
   };
 
@@ -354,7 +388,7 @@ const Expenses = () => {
       } else {
         toast.success('MIS resend completed');
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to resend MIS emails');
     }
   };
@@ -388,12 +422,19 @@ const Expenses = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" onClick={handleExport}>
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              className="border-white/60 text-white hover:bg-white/10 hover:text-white"
+            >
               <Download size={18} className="mr-2" />
               Export view
             </Button>
             {['mis_manager', 'super_admin'].includes(user?.role) && (
-              <Button onClick={() => (window.location.href = '/bulk-upload')}>
+              <Button
+                onClick={() => (window.location.href = '/bulk-upload')}
+                className="bg-[#2f64df] text-white hover:bg-[#2a58c5]"
+              >
                 <Upload size={18} className="mr-2" />
                 Bulk upload
               </Button>
@@ -428,72 +469,87 @@ const Expenses = () => {
         {/* Search and Filters */}
         <Card>
           <div className="space-y-5">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+            <div className="flex flex-wrap items-start gap-2">
               <Input
-                className={`flex-1 ${bulkDeleteEnabled ? 'xl:max-w-[420px]' : ''}`}
+                className={`min-w-[260px] flex-1 ${bulkDeleteEnabled ? 'xl:max-w-[720px]' : ''}`}
                 placeholder="Search by card number, service, handler..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 icon={<Search size={16} />}
               />
-              <div className="flex flex-wrap gap-3">
-                <Button onClick={handleSearch}>
-                  <Search size={18} className="mr-2" />
-                  Apply search
+              <Button onClick={handleSearch} className="whitespace-nowrap">
+                <Search size={18} className="mr-2" />
+                Apply search
+              </Button>
+              <Button variant="secondary" onClick={handleClearFilters} className="whitespace-nowrap">
+                Clear
+              </Button>
+              <AdvancedFilter
+                appliedFilters={filters}
+                onApplyFilters={(newFilters) => {
+                  const updatedFilters = { ...createDefaultFilters(), ...newFilters };
+                  setFilters(updatedFilters);
+                  fetchExpenses(updatedFilters, searchTerm, { resetPage: true });
+                }}
+                onClearFilters={() => {
+                  const cleared = createDefaultFilters();
+                  setFilters(cleared);
+                  fetchExpenses(cleared, '', { resetPage: true });
+                  setSearchTerm('');
+                }}
+                showBusinessUnit={canFilterBusinessUnit}
+                showDuplicateStatusFilter={canSeeDuplicateControls}
+                showServiceHandlerFilter={canFilterServiceHandler}
+                showCardAssignedFilter={canFilterCardAssigned}
+                serviceHandlerOptions={serviceHandlerOptions}
+                cardAssignedOptions={cardAssignedOptions}
+                includeEmptyOption
+              />
+              {canBulkDelete && (
+                <Button
+                  variant={bulkDeleteEnabled ? 'primary' : 'secondary'}
+                  onClick={toggleBulkDelete}
+                  className="whitespace-nowrap"
+                >
+                  Select entries
                 </Button>
-                <Button variant="secondary" onClick={handleClearFilters}>
-                  Clear
+              )}
+              {bulkDeleteEnabled && (
+                <div className="inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+                  {selectedIds.length} selected
+                </div>
+              )}
+              {bulkDeleteEnabled && canClubExpenses && (
+                <Button
+                  onClick={handleClubSelected}
+                  disabled={selectedIds.length < 2}
+                  className="whitespace-nowrap"
+                >
+                  Club selected
                 </Button>
-                <AdvancedFilter
-                  appliedFilters={filters}
-                  onApplyFilters={(newFilters) => {
-                    const updatedFilters = { ...createDefaultFilters(), ...newFilters };
-                    setFilters(updatedFilters);
-                    fetchExpenses(updatedFilters, searchTerm);
-                  }}
-                  onClearFilters={() => {
-                    const cleared = createDefaultFilters();
-                    setFilters(cleared);
-                    fetchExpenses(cleared, '');
-                    setSearchTerm('');
-                  }}
-                  showBusinessUnit={canFilterBusinessUnit}
-                  showDuplicateStatusFilter={canSeeDuplicateControls}
-                  showServiceHandlerFilter={canFilterServiceHandler}
-                  showCardAssignedFilter={canFilterCardAssigned}
-                  serviceHandlerOptions={serviceHandlerOptions}
-                  cardAssignedOptions={cardAssignedOptions}
-                  includeEmptyOption
-                />
-                {canBulkDelete && (
-                  <Button
-                    variant={bulkDeleteEnabled ? 'primary' : 'secondary'}
-                    onClick={toggleBulkDelete}
-                  >
-                    Select entries
-                  </Button>
-                )}
-                {bulkDeleteEnabled && (
-                  <Button
-                    variant="secondary"
-                    onClick={handleBulkResendMis}
-                    disabled={selectedIds.length === 0 || !canResendMis}
-                  >
-                    <Send size={18} className="mr-2" />
-                    Resend MIS ({selectedIds.length})
-                  </Button>
-                )}
-                {bulkDeleteEnabled && (
-                  <Button
-                    variant="danger"
-                    onClick={handleBulkDelete}
-                    disabled={selectedIds.length === 0}
-                  >
-                    Delete now ({selectedIds.length})
-                  </Button>
-                )}
-              </div>
+              )}
+              {bulkDeleteEnabled && (
+                <Button
+                  variant="secondary"
+                  onClick={handleBulkResendMis}
+                  disabled={selectedIds.length === 0 || !canResendMis}
+                  className="whitespace-nowrap"
+                >
+                  <Send size={18} className="mr-2" />
+                  Resend MIS ({selectedIds.length})
+                </Button>
+              )}
+              {bulkDeleteEnabled && (
+                <Button
+                  variant="danger"
+                  onClick={handleBulkDelete}
+                  disabled={selectedIds.length === 0}
+                  className="whitespace-nowrap"
+                >
+                  Delete now ({selectedIds.length})
+                </Button>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
               <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5">
@@ -518,9 +574,9 @@ const Expenses = () => {
                     />
                     <span>Show duplicate column</span>
                   </label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Export</span>
-                    <div className="flex rounded-full border border-slate-200 bg-white/80 p-1">
+                    <div className="flex flex-wrap rounded-full border border-slate-200 bg-white/80 p-1">
                       {['all', 'duplicate', 'unique'].map((mode) => (
                         <button
                           key={mode}
@@ -552,7 +608,7 @@ const Expenses = () => {
                           if (tooltip) tooltip.style.display = 'none';
                         }}
                       >
-                        what’s this?
+                        what's this?
                         <span className="dup-tooltip hidden absolute z-20 left-0 mt-2 w-72 rounded-lg bg-slate-800 px-3 py-2 text-xs text-white shadow-lg">
                           {duplicateHelp}
                         </span>
@@ -579,6 +635,7 @@ const Expenses = () => {
             selectedIds={selectedIds}
             onToggleSelect={toggleSelectEntry}
             onToggleSelectAll={handleToggleSelectAll}
+            onUnclubGroup={canClubExpenses ? handleUnclubGroup : undefined}
           />
 
           {!loading && expenses.length > 0 && (

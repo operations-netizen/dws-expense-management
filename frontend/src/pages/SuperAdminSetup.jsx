@@ -22,8 +22,8 @@ const SuperAdminSetup = () => {
         if (response.success) {
           setHasSuperAdmin(response.data.hasSuperAdmin);
         }
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Unable to verify setup status.');
+      } catch (_error) {
+        toast.error(_error.response?.data?.message || 'Unable to verify setup status.');
       } finally {
         setStatusLoading(false);
       }
@@ -56,8 +56,8 @@ const SuperAdminSetup = () => {
         toast.success('Super Admin created successfully. You can now log in.');
         navigate('/login');
       }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Unable to create Super Admin.');
+    } catch (_error) {
+      toast.error(_error.response?.data?.message || 'Unable to create Super Admin.');
     } finally {
       setSubmitting(false);
     }

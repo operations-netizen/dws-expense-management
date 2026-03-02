@@ -228,6 +228,103 @@ const sendMisNotificationsForEntry = async (entry, submittedBy, cachedMisManager
   return { total: recipients.length, success, failed };
 };
 
+const CLUB_CLEAR_FIELDS = {
+  clubGroupId: null,
+  isClubRepresentative: false,
+  clubbedBy: null,
+  clubbedAt: null,
+};
+
+const getComparableTime = (value) => {
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+};
+
+const sortEntriesByRecency = (entries = []) =>
+  [...entries].sort((a, b) => {
+    const timeDiff = getComparableTime(b?.date || b?.createdAt) - getComparableTime(a?.date || a?.createdAt);
+    if (timeDiff !== 0) return timeDiff;
+    return (a?._id?.toString?.() || '').localeCompare(b?._id?.toString?.() || '');
+  });
+
+const buildClubbedExpenseRows = (entries = []) => {
+  const grouped = new Map();
+
+  entries.forEach((entry) => {
+    const groupId = entry?.clubGroupId;
+    if (groupId) {
+      if (!grouped.has(groupId)) grouped.set(groupId, []);
+      grouped.get(groupId).push(entry);
+    }
+  });
+
+  const emittedGroups = new Set();
+  const rows = [];
+
+  entries.forEach((entry) => {
+    const groupId = entry?.clubGroupId;
+    if (!groupId) {
+      rows.push(entry);
+      return;
+    }
+    if (emittedGroups.has(groupId)) return;
+
+    const members = grouped.get(groupId) || [];
+    const sortedMembers = sortEntriesByRecency(members);
+    if (sortedMembers.length === 0) return;
+
+    const representative = members.find((item) => item.isClubRepresentative) || sortedMembers[0];
+    const clubbedEntries = sortedMembers.map((item, idx) => ({
+      ...item,
+      clubMemberIndex: idx + 1,
+    }));
+    const totalAmount = clubbedEntries.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const totalAmountInINR = clubbedEntries.reduce((sum, item) => sum + (Number(item.amountInINR) || 0), 0);
+
+    rows.push({
+      ...representative,
+      amount: totalAmount,
+      amountInINR: totalAmountInINR,
+      isClubbed: true,
+      clubGroupId: groupId,
+      clubbedEntryCount: clubbedEntries.length,
+      clubbedEntries,
+      clubbedSummary: `${clubbedEntries.length} entries clubbed`,
+    });
+    emittedGroups.add(groupId);
+  });
+
+  return rows;
+};
+
+const ensureClubRepresentatives = async (groupIds = []) => {
+  const normalized = [...new Set((groupIds || []).filter(Boolean))];
+  if (normalized.length === 0) return;
+
+  const groupedEntries = await ExpenseEntry.find({ clubGroupId: { $in: normalized } })
+    .select('_id clubGroupId isClubRepresentative date createdAt')
+    .lean();
+
+  const byGroup = new Map();
+  groupedEntries.forEach((entry) => {
+    if (!entry.clubGroupId) return;
+    if (!byGroup.has(entry.clubGroupId)) byGroup.set(entry.clubGroupId, []);
+    byGroup.get(entry.clubGroupId).push(entry);
+  });
+
+  for (const [groupId, entries] of byGroup.entries()) {
+    if (!entries?.length) continue;
+    if (entries.some((entry) => entry.isClubRepresentative)) continue;
+
+    const fallback = sortEntriesByRecency(entries)[0];
+    if (!fallback?._id) continue;
+
+    await ExpenseEntry.findByIdAndUpdate(fallback._id, {
+      $set: { isClubRepresentative: true },
+    });
+  }
+};
+
 // @desc    Create new expense entry
 // @route   POST /api/expenses
 // @access  Private (SPOC, MIS, Super Admin, Business Unit Admin)
@@ -653,11 +750,12 @@ export const getExpenseEntries = async (req, res) => {
 
     const annotated = annotateDuplicates(expenseEntries);
     const filtered = filterByDuplicateStatus(annotated, duplicateStatus);
+    const clubbedRows = buildClubbedExpenseRows(filtered);
 
     res.status(200).json({
       success: true,
-      count: filtered.length,
-      data: filtered,
+      count: clubbedRows.length,
+      data: clubbedRows,
     });
   } catch (error) {
     res.status(500).json({
@@ -909,7 +1007,10 @@ export const deleteExpenseEntry = async (req, res) => {
       renewalDate: new Date(),
     });
 
+    const affectedGroupId = expenseEntry.clubGroupId || null;
+
     await ExpenseEntry.findByIdAndDelete(req.params.id);
+    await ensureClubRepresentatives([affectedGroupId]);
 
     res.status(200).json({
       success: true,
@@ -945,6 +1046,7 @@ export const bulkDeleteExpenseEntries = async (req, res) => {
     }
 
     const actorLabel = req.user?.role === 'mis_manager' ? 'MIS Manager' : 'Super Admin';
+    const affectedGroupIds = [...new Set(entries.map((entry) => entry.clubGroupId).filter(Boolean))];
     const now = new Date();
     const logs = entries.map((entry) => ({
       expenseEntry: entry._id,
@@ -956,10 +1058,151 @@ export const bulkDeleteExpenseEntries = async (req, res) => {
 
     await RenewalLog.insertMany(logs);
     await ExpenseEntry.deleteMany({ _id: { $in: ids } });
+    await ensureClubRepresentatives(affectedGroupIds);
 
     res.status(200).json({
       success: true,
       deleted: entries.length,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Club multiple expense entries into one grouped row
+// @route   POST /api/expenses/club
+// @access  Private (MIS, Super Admin)
+export const clubExpenseEntries = async (req, res) => {
+  try {
+    const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    const ids = [...new Set(rawIds.map((id) => id?.toString?.()).filter(Boolean))];
+
+    if (ids.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Select at least 2 entries to create a club',
+      });
+    }
+
+    if (!ids.every((id) => mongoose.Types.ObjectId.isValid(id))) {
+      return res.status(400).json({
+        success: false,
+        message: 'One or more selected entry IDs are invalid',
+      });
+    }
+
+    const entries = await ExpenseEntry.find({ _id: { $in: ids } }).lean();
+    const entryMap = new Map(entries.map((entry) => [entry._id.toString(), entry]));
+    const missingIds = ids.filter((id) => !entryMap.has(id));
+    if (missingIds.length > 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Some selected entries were not found',
+        data: { missingIds },
+      });
+    }
+
+    const alreadyClubbed = entries.filter((entry) => entry.clubGroupId).map((entry) => entry._id.toString());
+    if (alreadyClubbed.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Some selected entries are already clubbed. Unclub them first.',
+        data: { alreadyClubbed },
+      });
+    }
+
+    const nonAccepted = entries
+      .filter((entry) => entry.entryStatus !== 'Accepted')
+      .map((entry) => entry._id.toString());
+    if (nonAccepted.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only accepted entries can be clubbed',
+        data: { nonAccepted },
+      });
+    }
+
+    const representativeId = ids[0];
+    const clubGroupId = new mongoose.Types.ObjectId().toString();
+    const now = new Date();
+
+    await ExpenseEntry.bulkWrite(
+      ids.map((id) => ({
+        updateOne: {
+          filter: { _id: id },
+          update: {
+            $set: {
+              clubGroupId,
+              isClubRepresentative: id === representativeId,
+              clubbedBy: req.user?._id || null,
+              clubbedAt: now,
+            },
+          },
+        },
+      }))
+    );
+
+    const clubbedEntries = await ExpenseEntry.find({ clubGroupId })
+      .select('_id clubGroupId isClubRepresentative')
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      message: 'Entries clubbed successfully',
+      data: {
+        clubGroupId,
+        representativeId,
+        clubbedEntryCount: clubbedEntries.length,
+        entryIds: clubbedEntries.map((entry) => entry._id.toString()),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// @desc    Remove club grouping from a clubbed set of entries
+// @route   POST /api/expenses/club/:clubGroupId/unclub
+// @access  Private (MIS, Super Admin)
+export const unclubExpenseEntries = async (req, res) => {
+  try {
+    const clubGroupId = req.params?.clubGroupId?.toString()?.trim();
+    if (!clubGroupId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Club group ID is required',
+      });
+    }
+
+    const entries = await ExpenseEntry.find({ clubGroupId }).select('_id').lean();
+    if (entries.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Club group not found',
+      });
+    }
+
+    await ExpenseEntry.updateMany(
+      { clubGroupId },
+      {
+        $set: CLUB_CLEAR_FIELDS,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Entries unclubbed successfully',
+      data: {
+        clubGroupId,
+        unclubbedCount: entries.length,
+        entryIds: entries.map((entry) => entry._id.toString()),
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -1267,6 +1510,8 @@ export default {
   updateExpenseEntry,
   deleteExpenseEntry,
   bulkDeleteExpenseEntries,
+  clubExpenseEntries,
+  unclubExpenseEntries,
   resendMISNotification,
   bulkResendMISNotifications,
   approveExpenseEntry,

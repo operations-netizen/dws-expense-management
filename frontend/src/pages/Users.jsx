@@ -8,6 +8,7 @@ import Select from '../components/common/Select';
 import Modal from '../components/common/Modal';
 import Badge from '../components/common/Badge';
 import Loading from '../components/common/Loading';
+import PageHeader from '../components/common/PageHeader';
 import { getUsers, register, updateUser, deleteUser } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import { USER_ROLES, BUSINESS_UNITS } from '../utils/constants';
@@ -40,7 +41,7 @@ const Users = () => {
       if (response.success) {
         setUsers(response.data);
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to load users');
     } finally {
       setLoading(false);
@@ -107,8 +108,8 @@ const Users = () => {
       }
       handleCloseModal();
       fetchUsers();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Operation failed');
+    } catch (_error) {
+      toast.error(_error.response?.data?.message || 'Operation failed');
     }
   };
 
@@ -118,7 +119,7 @@ const Users = () => {
         await deleteUser(userId);
         toast.success('User deleted successfully');
         fetchUsers();
-      } catch (error) {
+      } catch (_error) {
         toast.error('Failed to delete user');
       }
     }
@@ -143,14 +144,17 @@ const Users = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-          <Button onClick={() => handleOpenModal()}>
-            <UserPlus size={18} className="mr-2" />
-            Add User
-          </Button>
-        </div>
+        <PageHeader
+          eyebrow="Access Control"
+          title="User Management"
+          description="Create, edit, and maintain role-based access for all workspace users."
+          actions={
+            <Button onClick={() => handleOpenModal()}>
+              <UserPlus size={16} />
+              Add User
+            </Button>
+          }
+        />
 
         {/* Search */}
         <Card>

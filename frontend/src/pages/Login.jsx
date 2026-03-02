@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { login } from '../services/authService';
@@ -47,10 +47,10 @@ const Login = () => {
       }
       toast.success('Welcome back!');
       navigate('/dashboard');
-    } catch (error) {
+    } catch (_error) {
       const msg =
-        error.response?.data?.message ||
-        (error.response?.status === 401
+        _error.response?.data?.message ||
+        (_error.response?.status === 401
           ? 'Invalid email or password.'
           : 'Login failed. Please try again.');
       toast.error(msg);
@@ -172,21 +172,6 @@ const Login = () => {
                   {loading ? 'Signing in...' : 'Sign in'}
                 </Button>
 
-              <div className="mt-7 flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                <Link to="#" className="text-slate-500 hover:text-slate-700">
-                  Forgot your password?
-                </Link>
-                <Link to="/setup" className="font-semibold text-[#2f64df] hover:text-[#2858ca]">
-                  Need help signing in?
-                </Link>
-              </div>
-
-              <div className="mt-6 text-xs text-slate-500">
-                First-time setup?{' '}
-                <Link to="/setup" className="font-semibold text-[#2f64df] hover:text-[#2858ca]">
-                  Create Super Admin
-                </Link>
-              </div>
             </form>
           </div>
         </section>

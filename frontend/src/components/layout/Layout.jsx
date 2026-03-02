@@ -1,14 +1,40 @@
+import { useEffect, useState } from 'react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 
 const Layout = ({ children }) => {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      const stored = window.localStorage.getItem('sidebarCollapsed');
+      if (stored === null) return true;
+      return stored === 'true';
+    } catch (_error) {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
+    } catch (_error) {
+      // Ignore storage errors and keep runtime state.
+    }
+  }, [sidebarCollapsed]);
+
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100">
-      <Navbar />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 ml-0 md:ml-72 px-4 py-6 sm:px-8 lg:px-12 pt-28 lg:pt-28 min-h-screen overflow-y-auto">
-          <div className="max-w-7xl mx-auto space-y-6 pb-16">{children}</div>
+    <div className="page-shell min-h-screen w-full overflow-x-hidden">
+      <Navbar sidebarCollapsed={sidebarCollapsed} />
+      <div className="flex min-h-screen">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+        />
+        <main
+          className={`min-h-screen w-full px-4 pb-10 pt-24 sm:px-6 md:px-8 lg:px-10 ${
+            sidebarCollapsed ? 'md:ml-20 md:w-[calc(100%-5rem)]' : 'md:ml-72 md:w-[calc(100%-18rem)]'
+          }`}
+        >
+          <div className="mx-auto max-w-[1840px] space-y-6">{children}</div>
         </main>
       </div> 
     </div>

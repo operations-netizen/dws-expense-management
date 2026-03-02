@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bell, Check, CheckCheck, Trash2, AlertCircle } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import Card from '../components/common/Card';
@@ -6,6 +6,7 @@ import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import Loading from '../components/common/Loading';
 import Modal from '../components/common/Modal';
+import PageHeader from '../components/common/PageHeader';
 import { 
   getNotifications,
   markAsRead,
@@ -26,11 +27,7 @@ const Notifications = () => {
   const [actionReason, setActionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [filter]);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
       const isRead = filter === 'all' ? undefined : filter === 'read';
@@ -38,19 +35,23 @@ const Notifications = () => {
       if (response.success) {
         setNotifications(response.data);
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to load notifications');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   const handleMarkAsRead = async (id) => {
     try {
       await markAsRead(id);
       toast.success('Notification marked as read');
       fetchNotifications();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to mark as read');
     }
   };
@@ -60,7 +61,7 @@ const Notifications = () => {
       await markAllAsRead();
       toast.success('All notifications marked as read');
       fetchNotifications();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to mark all as read');
     }
   };
@@ -71,7 +72,7 @@ const Notifications = () => {
         await deleteNotification(id);
         toast.success('Notification deleted');
         fetchNotifications();
-      } catch (error) {
+      } catch (_error) {
         toast.error('Failed to delete notification');
       }
     }
@@ -110,7 +111,7 @@ const Notifications = () => {
       );
       setShowActionModal(false);
       fetchNotifications();
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to submit response');
     } finally {
       setActionLoading(false);
@@ -148,14 +149,17 @@ const Notifications = () => {
     <>
       <Layout>
         <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-          <Button onClick={handleMarkAllAsRead} variant="secondary" size="sm">
-            <CheckCheck size={18} className="mr-2" />
-            Mark All as Read
-          </Button>
-        </div>
+        <PageHeader
+          eyebrow="Inbox"
+          title="Notifications"
+          description="Track reminders, approvals, and service lifecycle actions from one queue."
+          actions={
+            <Button onClick={handleMarkAllAsRead} variant="secondary" size="sm">
+              <CheckCheck size={16} />
+              Mark All as Read
+            </Button>
+          }
+        />
 
         {/* Filter Tabs */}
         <Card>

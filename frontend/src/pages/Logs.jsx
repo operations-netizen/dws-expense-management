@@ -3,6 +3,7 @@ import Layout from '../components/layout/Layout';
 import Card from '../components/common/Card';
 import Loading from '../components/common/Loading';
 import Badge from '../components/common/Badge';
+import PageHeader from '../components/common/PageHeader';
 import { getLogs } from '../services/logService';
 import { formatCurrency, formatDate, formatDateTime } from '../utils/formatters';
 import { Search } from 'lucide-react';
@@ -40,7 +41,7 @@ const Logs = () => {
         if (response.success) {
           setLogs(response.data || []);
         }
-      } catch (error) {
+      } catch (_error) {
         toast.error('Failed to load logs');
       } finally {
         setLoading(false);
@@ -83,13 +84,12 @@ const Logs = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Logs</h1>
-            <p className="text-gray-600">
-              Track purchases, renewal decisions, and disable requests.
-            </p>
-          </div>
+        <div className="flex flex-col gap-4">
+          <PageHeader
+            eyebrow="Audit Trail"
+            title="Logs"
+            description="Track purchases, renewal decisions, disable requests, and shared allocation changes."
+          />
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-3 text-gray-400" size={18} />
             <input
@@ -132,7 +132,7 @@ const Logs = () => {
                       </h3>
                       <p className="text-sm text-gray-700">
                         Handler: <span className="font-medium">{log.serviceHandler || '-'}</span>{' '}
-                        • Entered by: <span className="font-medium">{log.spoc || '-'}</span>
+                        | Entered by: <span className="font-medium">{log.spoc || '-'}</span>
                       </p>
                     </div>
                     <div className="text-right text-sm text-gray-700 space-y-1">
@@ -156,7 +156,7 @@ const Logs = () => {
                   <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-700">
                     {log.cardNumber && (
                       <div>
-                        <strong>Card:</strong> {log.cardNumber} • {log.cardAssignedTo}
+                        <strong>Card:</strong> {log.cardNumber} | {log.cardAssignedTo}
                       </div>
                     )}
                 {log.recurring && (

@@ -11,24 +11,24 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
   };
  
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8">
+    <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 sm:py-10">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}></div>
       <div
-        className={`relative w-full ${sizes[size]} glass-panel rounded-3xl overflow-hidden shadow-2xl animate-[fadeIn_0.2s_ease-out] max-h-[90vh] flex flex-col`}
+        className={`relative w-full ${sizes[size]} glass-panel overflow-hidden animate-[fadeIn_0.2s_ease-out] max-h-[90vh] flex flex-col`}
       >
-        <div className="flex items-start justify-between px-6 py-5 border-b border-white/60">
+        <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4 sm:px-6">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400 mb-1">Control Center</p>
-            <h3 className="text-xl font-semibold text-slate-900">{title}</h3>
+            <p className="text-xs uppercase tracking-[0.26em] text-slate-400 mb-1">Workspace Action</p>
+            <h3 className="text-lg sm:text-xl font-semibold text-slate-900">{title}</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full bg-white/80 text-slate-500 hover:text-slate-900 transition-colors"
+            className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
           >
             <X size={20} />
           </button>
         </div>
-        <div className="px-6 py-6 overflow-y-auto flex-1">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">{children}</div>
       </div>
     </div>
   );

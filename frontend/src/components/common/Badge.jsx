@@ -2,7 +2,7 @@ import { getStatusBadgeColor } from '../../utils/formatters';
 
 const Badge = ({ children, variant = 'default', className = '' }) => {
   const variants = {
-    default: 'bg-slate-100/80 text-slate-700 border border-slate-200',
+    default: 'border border-slate-200 bg-slate-100/90 text-slate-700',
     success: 'bg-emerald-100 text-emerald-800 border border-emerald-200',
     warning: 'bg-amber-100 text-amber-800 border border-amber-200',
     danger: 'bg-rose-100 text-rose-800 border border-rose-200',
@@ -17,7 +17,7 @@ const Badge = ({ children, variant = 'default', className = '' }) => {
 
   return (
     <span
-      className={`inline-flex items-center px-3 py-1 rounded-full text-[0.7rem] font-semibold tracking-wide uppercase shadow-sm ${colorClass} ${className}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[0.67rem] font-semibold uppercase tracking-wide ${colorClass} ${className}`}
     >
       {children}
     </span>

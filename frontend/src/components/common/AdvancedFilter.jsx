@@ -1,9 +1,10 @@
-import { useEffect, useImperativeHandle, useMemo, useState, forwardRef, useId } from 'react';
+import { useImperativeHandle, useMemo, useState, forwardRef, useId } from 'react';
 import { Filter, X, Calendar, DollarSign } from 'lucide-react';
 import Button from './Button';
 import Select from './Select';
 import Input from './Input';
 import Modal from './Modal';
+import { ADVANCED_FILTER_DEFAULTS } from './filterDefaults';
 import { 
   BUSINESS_UNITS,
   TYPES_OF_EXPENSE,
@@ -12,27 +13,6 @@ import {
   RECURRING_OPTIONS,
   STATUS_OPTIONS,
 } from '../../utils/constants';
-
-export const ADVANCED_FILTER_DEFAULTS = {
-  businessUnit: '',
-  cardNumber: '',
-  cardAssignedTo: '',
-  status: '',
-  typeOfService: '',
-  serviceHandler: '',
-  costCenter: '',
-  approvedBy: '',
-  recurring: '',
-  startDate: '',
-  endDate: '',
-  disableStartDate: '',
-  disableEndDate: '',
-  month: '',
-  minAmount: '',
-  maxAmount: '',
-  duplicateStatus: '',
-  sharedOnly: '',
-};
 
 const EMPTY_OPTION = { label: 'Blank / Unassigned', value: '__empty__' };
 
@@ -52,18 +32,17 @@ const AdvancedFilter = forwardRef(({
   includeEmptyOption = false,
 }, ref) => {
   const [showModal, setShowModal] = useState(false);
-  const [filters, setFilters] = useState({ ...ADVANCED_FILTER_DEFAULTS, ...appliedFilters });
+  const [filters, setFilters] = useState(() => ({ ...ADVANCED_FILTER_DEFAULTS, ...appliedFilters }));
   const serviceHandlerListId = useId();
   const cardAssignedListId = useId();
 
   const withEmptyOption = (options) => (includeEmptyOption ? [EMPTY_OPTION, ...options] : options);
 
-  useEffect(() => {
-    setFilters({ ...ADVANCED_FILTER_DEFAULTS, ...appliedFilters });
-  }, [appliedFilters]);
-
   useImperativeHandle(ref, () => ({
-    open: () => setShowModal(true),
+    open: () => {
+      setFilters({ ...ADVANCED_FILTER_DEFAULTS, ...appliedFilters });
+      setShowModal(true);
+    },
     close: () => setShowModal(false),
     reset: () => setFilters({ ...ADVANCED_FILTER_DEFAULTS }),
   }));
@@ -78,7 +57,7 @@ const AdvancedFilter = forwardRef(({
   const handleApply = () => {
     // Remove empty filters
     const activeFilters = Object.fromEntries(
-      Object.entries(filters).filter(([_, value]) => value !== '')
+      Object.entries(filters).filter(([, value]) => value !== '')
     );
     if (onApplyFilters) {
       onApplyFilters(activeFilters);
@@ -103,7 +82,14 @@ const AdvancedFilter = forwardRef(({
   return (
     <>
       {!hideTrigger && (
-        <Button onClick={() => setShowModal(true)} variant={variant} className="relative">
+        <Button
+          onClick={() => {
+            setFilters({ ...ADVANCED_FILTER_DEFAULTS, ...appliedFilters });
+            setShowModal(true);
+          }}
+          variant={variant}
+          className="relative"
+        >
           <Filter size={18} className="mr-2" />
           {label}
           {activeFilterCount > 0 && (
