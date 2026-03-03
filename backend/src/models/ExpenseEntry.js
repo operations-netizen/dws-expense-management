@@ -66,6 +66,7 @@ const expenseEntrySchema = new mongoose.Schema(
     typeOfService: {
       type: String,
       enum: [
+        'Ads',
         'Domain',
         'Google',
         'Google Adwords Expense',

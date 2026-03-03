@@ -1,6 +1,7 @@
 export const BUSINESS_UNITS = ['DWSG', 'Signature', 'Collabx', 'Wytlabs', 'Smegoweb'];
 
 export const TYPES_OF_EXPENSE = [
+  'Ads',
   'Domain',
   'Google',
   'Google Adwords Expense',

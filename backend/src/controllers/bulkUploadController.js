@@ -510,6 +510,7 @@ export const bulkUploadExpenses = async (req, res) => {
         const rawMonth = normalizeTextValue(getField(row, ['Month', 'month']));
         // Enum maps
         const typeMap = {
+          ads: 'Ads',
           'tool & service': 'Tools & Service',
           'tools & service': 'Tools & Service',
           'tool & services': 'Tools & Service',
@@ -529,6 +530,7 @@ export const bulkUploadExpenses = async (req, res) => {
           'staff welfare': 'Staff & welfare',
         };
         const allowedTypes = [
+          'Ads',
           'Domain',
           'Google',
           'Google Adwords Expense',
